@@ -28,7 +28,7 @@ LPAR: '(';
 RPAR: ')';
 
 //typedefs
-STRING: '"' ~('"') '"';
+STRING: '"' ~('"')* '"';
 IDENTIFIER: (LETTER | UNDERSCORE) (LETTER | DIGIT | UNDERSCORE)*;
 INTEGER: (NONZERODIGIT DIGIT*) | [0];
 
