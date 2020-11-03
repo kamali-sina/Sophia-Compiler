@@ -8,7 +8,7 @@ conditional_statement: IF if_parantheses (scope | line) (else | );
 if_parantheses: LPAR expression RPAR;
 else: ELSE (scope | line);
 loop_statement: for_statement | foreach_statement;
-for_statement: FOR LPAR (expression | ) SEMICOLON (expression | ) SEMICOLON (expression | ) RPAR (scope | line);
+for_statement: FOR LPAR (assignment | ) SEMICOLON (expression | ) SEMICOLON (assignment | ) RPAR (scope | line);
 foreach_statement: FOREACH LPAR IDENTIFIER IN IDENTIFIER RPAR (scope | line); //maybe IDENTIFIER in varible and make varible a grammer?
 variable_declaration: IDENTIFIER COLON (VAR_TYPE | IDENTIFIER); //double check this 
 
