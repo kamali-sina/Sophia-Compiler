@@ -1,11 +1,8 @@
 grammar Lexer;
 
-/*TODO: how to add method_call to statement */
-
-/*note: use this for scopes!!! */
 main_scope: class_declaration*;
-function_scope: LBRACE variable_declaration* statement* RBRACE;
-class_scope: LBRACE (variable_declaration* function_declaration* constructor_declaration? function_declaration*) RBRACE;
+function_scope: LBRACE (variable_declaration SEMICOLON)* statement* RBRACE;
+class_scope: LBRACE ((variable_declaration SEMICOLON)* function_declaration* constructor_declaration? function_declaration*) RBRACE;
 
 //expressions
 statement: normal_brace | conditional_statement | jump_statement | print_statement | conditional_statement | (assignment SEMICOLON);
@@ -15,60 +12,47 @@ jump_statement: (control_statement | return_statement) SEMICOLON;
 return_statement: RETURN (IDENTIFIER | LITERAL | );
 control_statement: CONTROL;
 //print statement
-print_statement: PRINT LPAR value RPAR SEMICOLON;
+print_statement: PRINT LPAR expression RPAR SEMICOLON;
 //conditinal statement
-conditional_statement: IF condition statement (else | );
+conditional_statement: IF condition statement else_statement?;
 condition: LPAR expression RPAR;
-else: ELSE statement;
+else_statement: ELSE statement;
 //loop statements
 loop_statement: for_statement | foreach_statement;
 for_statement: FOR LPAR (assignment | ) SEMICOLON (expression | ) SEMICOLON (assignment | ) RPAR statement;
-foreach_statement: FOREACH LPAR IDENTIFIER IN expression RPAR statement; //maybe IDENTIFIER in varible and make varible a grammer?
+foreach_statement: FOREACH LPAR IDENTIFIER IN expression RPAR statement;
 //declaration statement
-type: PRIMITIVE_TYPE | func_refrense | list_declaration | IDENTIFIER;
-variable_declaration: IDENTIFIER COLON type SEMICOLON;
-list_declaration: (LIST LPAR (variable_declaration | type)*  RPAR)
-                | (LIST LPAR value HASH type RPAR);
-func_refrense: FUNC LESS_THAN (types | VOID) ARROW (type | VOID) GREATER_THAN;
-class_declaration: CLASSDEC IDENTIFIER (inheritance)? class_scope; // constructor_declaration in scope, variables should come first
+
+class_declaration: CLASSDEC IDENTIFIER (inheritance)? class_scope;
 inheritance: INHERITANCE IDENTIFIER;
-types: type (COMMA type)*;
-constructor_declaration: DEF IDENTIFIER LPAR function_parameters RPAR function_scope; //not list
-function_declaration: DEF (type | VOID) IDENTIFIER LPAR function_parameters RPAR function_scope; //not list, variables should come first
+constructor_declaration: DEF IDENTIFIER LPAR function_parameters RPAR function_scope;
+function_declaration: DEF (type | VOID) IDENTIFIER LPAR function_parameters RPAR function_scope;
 function_parameters: (variable_declaration (COMMA variable_declaration)*)?;
-//TODO: sina.n
-/*note: havaset bashe az scope estefade koni, be mesal e if statement am negah kon*/
-//we need to add statement and expression
-// function_scope: LBRACE (variable_declaration* statements) RBRACE;
+variable_declaration: IDENTIFIER COLON type;
 
 
-//TODO: TOMMOROW
-// mathematical and ... operators ... expression can contain several operators
-expression: arithmatic_expression | incremental_expression | compatative_expression | assignment | logical_expression | not_expression | value;
-arithmatic_expression: expression ARITHMETIC_OPERATOR expression;
-incremental_expression:  (expression INCREMENTAL_OPERATOR) | (INCREMENTAL_OPERATOR expression);
-compatative_expression: expression (COMPARATIVE_OPERATOR | GREATER_THAN | LESS_THAN) expression;
-logical_expression: (expression LOGICAL_OPERATOR expression) | (not_expression);
-not_expression: NOT_OPERATOR expression; 
+//TODO: expressions
+// expression: arithmatic_expression | incremental_expression | compatative_expression | assignment | logical_expression | not_expression | value;
+expression: value;
+assignment: expression ASSIGNMENT_OPERATOR expression;
+// expression_handler: ;
+// arithmatic_expression:  ARITHMETIC_OPERATOR expression;
+// incremental_expression:  (expression INCREMENTAL_OPERATOR) | (INCREMENTAL_OPERATOR expression);
+// compatative_expression: expression (COMPARATIVE_OPERATOR | GREATER_THAN | LESS_THAN) expression;
+// logical_expression: (expression LOGICAL_OPERATOR expression) | (not_expression);
+// term: prefix_operator? value;
+// prefix_operator: ;
+// not_expression: NOT_OPERATOR expression;
 
 value: LITERAL | variable | class_isntantiation;
 class_isntantiation: NEW IDENTIFIER LPAR parameters RPAR;
-variable: (IDENTIFIER | list_refrence | method_call) (dot_refrence | bracket_indexing)*;
+variable: (IDENTIFIER | list_refrence | method_call | THIS) (dot_refrence | bracket_indexing)*;
 list_refrence: IDENTIFIER bracket_indexing;
 method_call: IDENTIFIER LPAR parameters  RPAR;
 parameters: (value (COMMA value)*)?;
 dot_refrence: DOT (IDENTIFIER | list_refrence | method_call);
 bracket_indexing: LBRACK value RBRACK;
-assignment: expression ASSIGNMENT_OPERATOR expression;
 
-//class creation 
-
-//key words
-// KEYWORD: CLASSDEC | INHERITANCE | THIS | DEF | FUNC | RETURN | IF | ELSE | LOOP | CONTROL |
-//          BOOL_VALUE | VAR_TYPE | VOID | IN | NULL | NEW | PRINT;
-// FUNC_TYPE: VOID;
-PRIMITIVE_TYPE: 'int' | 'boolean' | 'string';
-LOOP: FOR | FOREACH;
 THIS: 'this';
 DEF: 'def';
 FUNC: 'func';
@@ -82,13 +66,18 @@ RETURN: 'return';
 PRINT: 'print';
 IF: 'if';
 ELSE: 'else';
-BOOL_VALUE: 'true' | 'false';
 FOR: 'for';
 FOREACH: 'foreach';
 CONTROL: 'break' | 'continue';
+types: type (COMMA type)*;
+type: PRIMITIVE_TYPE | func_refrense | list_declaration | IDENTIFIER;
+list_declaration: (LIST LPAR list_parameters RPAR)
+                | (LIST LPAR value HASH type RPAR);
+list_parameters: (variable_declaration | type) (COMMA (variable_declaration | type))*;
+func_refrense: FUNC LESS_THAN (types | VOID) ARROW (type | VOID) GREATER_THAN;
+PRIMITIVE_TYPE: 'int' | 'boolean' | 'string';
 
 //symbols
-OPERATOR: ARITHMETIC_OPERATOR | COMPARATIVE_OPERATOR | LOGICAL_OPERATOR | ASSIGNMENT_OPERATOR;
 ARITHMETIC_OPERATOR: '+' | '-' | '*' | '/' | '%';
 INCREMENTAL_OPERATOR: '++' | '--';
 COMPARATIVE_OPERATOR: '==' | '!=';
@@ -113,9 +102,10 @@ RBRACK: ']';
 
 //typedefs
 STRING: '"' ~('"')* '"';
-IDENTIFIER: (LETTER | UNDERSCORE) (LETTER | DIGIT | UNDERSCORE)*;
 INTEGER: (NONZERODIGIT DIGIT*) | [0];
 LIST : 'list';
+BOOL_VALUE: 'true' | 'false';
+IDENTIFIER: (LETTER | UNDERSCORE) (LETTER | DIGIT | UNDERSCORE)*;
 
 //helpers
 LETTER: [a-zA-Z];
