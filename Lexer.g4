@@ -14,9 +14,13 @@ variable_declaration: IDENTIFIER COLON (VAR_TYPE | IDENTIFIER); //double check t
 
 //TODO: sina.n
 /*note: havaset bashe az scope estefade koni, be mesal e if statement am negah kon*/
-class_declaration: ;
-constructor_declaration: ;
-function_declaration: ;
+//we need to add statement and expression
+class_scope: LBRACE (constructor_declaration | variable_declaration* function_declaration*) RBRACE;
+//function_scope: LBRACE (variable_declaration* statements) RBRACE;
+class_declaration: CLASSDEC IDENTIFIER (INHERITANCE IDENTIFIER | ) class_scope; // constructor_declaration in scope, variables should come first
+constructor_declaration: (DEF IDENTIFIER LPAR variable_declaration* RPAR scope | ); //not list
+function_declaration: DEF (VOID | VAR_TYPE) IDENTIFIER LPAR variable_declaration* RPAR scope; //not list, variables should come first
+
 
 //TODO: TOMMOROW
 // mathematical and ... operators ... expression can contain several operators
