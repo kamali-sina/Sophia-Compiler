@@ -9,13 +9,13 @@ setup:
 	export CLASSPATH=".:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH"
 
 antlr:
-	java -Xmx500M -cp ".:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH" org.antlr.v4.Tool Lexer.g4
+	java -Xmx500M -cp ".:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH" org.antlr.v4.Tool Sophia.g4
 
 javac:
-	javac Lexer*.java
+	javac Sophia*.java
 
 run:
-	.:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH" org.antlr.v4.gui.TestRig Lexer main_scope -gui < ../test_case.txt
+	.:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH" org.antlr.v4.gui.TestRig Sophia sophia -gui < ../test_case.txt
 
 .PHONY: clean
 
