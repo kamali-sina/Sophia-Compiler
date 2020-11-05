@@ -3,19 +3,22 @@ CC := gcc
 
 BUILD_DIR=.
 
-all: $antlr $javac $run_test
+all: setup antlr javac
 
-$antlr:
-	antlr4 Lexer.g4
+setup:
+	export CLASSPATH=".:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH"
 
-$javac:
+antlr:
+	java -Xmx500M -cp ".:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH" org.antlr.v4.Tool Lexer.g4
+
+javac:
 	javac Lexer*.java
 
-$run_test:
-	grun Lexer main_scope -gui < ./test_case.txt
+run:
+	.:/home/papa/Antlr/antlr-4.8-complete.jar:$CLASSPATH" org.antlr.v4.gui.TestRig Lexer main_scope -gui < ../test_case.txt
 
 .PHONY: clean
+
 clean:
 	rm -rf ./*.class ./*.java ./*.interp ./*.tokens
-run:
-	./${BUILD_DIR}/executable.out
+
