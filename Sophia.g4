@@ -67,7 +67,7 @@ prefix_operator: DASH | NOT_OPERATOR | INC | DEC;
 
 
 //values and variables
-value: LITERAL | variable | class_isntantiation | empty_bracket;
+value: LITERAL | variable | class_isntantiation | empty_bracket | NULL;
 empty_bracket: LBRACK parameters RBRACK;
 class_isntantiation: NEW IDENTIFIER LPAR parameters RPAR;
 variable: (IDENTIFIER | list_refrence | method_call | THIS) (dot_refrence | bracket_indexing | extra_parantheses)*;
