@@ -1,154 +1,287 @@
 grammar Sophia;
 
-sophia: main_scope;
+@header{
+    import main.ast.types.*;
+    import main.ast.types.functionPointer.*;
+    import main.ast.types.list.*;
+    import main.ast.types.single.*;
+    import main.ast.nodes.*;
+    import main.ast.nodes.declaration.*;
+    import main.ast.nodes.declaration.classDec.*;
+    import main.ast.nodes.declaration.classDec.classMembersDec.*;
+    import main.ast.nodes.declaration.variableDec.*;
+    import main.ast.nodes.expression.*;
+    import main.ast.nodes.expression.operators.*;
+    import main.ast.nodes.expression.values.*;
+    import main.ast.nodes.expression.values.primitive.*;
+    import main.ast.nodes.statement.*;
+    import main.ast.nodes.statement.loop.*;
+}
 
-main_scope: class_declaration*;
-function_scope: LBRACE (variable_declaration_statement)* statement* RBRACE;
-class_scope: LBRACE ((variable_declaration_statement)* function_declaration* constructor_declaration? function_declaration*) RBRACE;
+sophia returns[Program sophiaProgram]: p=program {$sophiaProgram = $p.programRet;} EOF;
 
-//expressions
-statement: normal_brace | conditional_statement | loop_statement | jump_statement | print_statement | method_call_statement | conditional_statement | assignment_statement;
-normal_brace: LBRACE statement* RBRACE;
-//jump_statement
-jump_statement: (control_statement | return_statement) SEMICOLON;
-return_statement: RETURN (expression)?{System.out.println("Return");};
-control_statement: CONTROL {System.out.println("Control:" + $CONTROL.getText());};
-//print statement
-print_statement: PRINT LPAR expression RPAR SEMICOLON{System.out.println("Built-in:print");};
-//conditinal statement
-conditional_statement: IF {System.out.println("Conditional:if");} condition statement else_statement? ;
-condition: LPAR expression RPAR;
-else_statement: ELSE {System.out.println("Conditional:else");} statement;
-//loop statements
-loop_statement: for_statement | foreach_statement;
-for_statement: FOR {System.out.println("Loop:for");} LPAR (assignment | ) SEMICOLON (expression | ) SEMICOLON (assignment | ) RPAR statement;
-foreach_statement: FOREACH {System.out.println("Loop:foreach");} LPAR IDENTIFIER IN expression RPAR statement;
-//declaration statement
-class_declaration: CLASSDEC IDENTIFIER {System.out.print("ClassDec:" + $IDENTIFIER.getText());} (inheritance | {System.out.println();}) class_scope;
-inheritance: INHERITANCE IDENTIFIER {System.out.println("," + $IDENTIFIER.getText());};
-constructor_declaration: DEF IDENTIFIER {System.out.println("ConstructorDec:" + $IDENTIFIER.getText());} LPAR function_parameters RPAR function_scope;
-function_declaration: DEF (type | VOID) IDENTIFIER {System.out.println("MethodDec:" + $IDENTIFIER.getText());} LPAR function_parameters RPAR function_scope;
-function_parameters: (variable_declaration (COMMA variable_declaration)*)?;
-variable_declaration_statement: IDENTIFIER COLON type SEMICOLON {System.out.println("VarDec:" + $IDENTIFIER.getText());};
-variable_declaration: IDENTIFIER COLON type;
-//method call statement
-method_call_statement: variable {System.out.println("MethodCall");} extra_parantheses SEMICOLON;
-assignment_statement: assignment SEMICOLON ;
-assignment: expression ASSIGNMENT_OPERATOR expression {System.out.println("Operator:=");};
+program returns[Program programRet]: (c=sophiaClass {$programRet.addClass($c.classDec);})*;
+//TODO: line sets and fix nodes that need new
+sophiaClass returns[ClassDeclaration classDec]: CLASS {$classDec = new ClassDeclaration(); $classDec.setLine($CLASS.getLine());} 
+            cn=identifier{$classDec.setClassName($cn.identity);}
+            (EXTENDS pc=identifier {$classDec.setParentClassName($pc.identity);})?
+            LBRACE
+            (((vd1=varDeclaration {$classDec.addField(new FieldDeclaration($vd1.varDec));}
+            | m1=method {$classDec.addMethod($m1.methodDec);})* 
+            cc=constructor{$classDec.setConstructor($cc.constructorDec);}
+            (vd2=varDeclaration {$classDec.addField(new FieldDeclaration($vd2.varDec));} 
+            | m2=method {$classDec.addMethod($m2.methodDec);})*) |
+            ((vd3=varDeclaration {$classDec.addField(new FieldDeclaration($vd3.varDec));} 
+            | m2=method {$classDec.addMethod($m2.methodDec);})*))
+            RBRACE;
 
-/*-------------------- LEFT RECURSION METHOD --------------------*/
-expression: LPAR expression RPAR 
-            | expression KK=(INC | DEC) {System.out.println("Operator:" + $KK.getText());}
-            | M=(DASH | NOT_OPERATOR | INC | DEC) expression {System.out.println("Operator:" + $M.getText());}
-            | expression X=(SLASH | STAR | MOD) expression {System.out.println("Operator:" + $X.getText());}
-            | expression Y=(PLUS | DASH) expression {System.out.println("Operator:" + $Y.getText());}
-            | expression Z=(GREATER_THAN | LESS_THAN) expression {System.out.println("Operator:" + $Z.getText());}
-            | expression F=(EQUAL | NOT_EQUAL) expression {System.out.println("Operator:" + $F.getText());}
-            | expression LAND expression {System.out.println("Operator:&&");}
-            | expression LOR expression {System.out.println("Operator:||");}
-            | expression ASSIGNMENT_OPERATOR expression {System.out.println("Operator:=");}
-            | value;
-/*-------------------- NO LEFT RECURSION METHOD --------------------*/
-// expression: LPAR expression handler 
-//             | KKK=(DASH | NOT_OPERATOR | INC | DEC) expression {System.out.println("Operator:" + $KKK.getText());}
-//             | value handler;
-// handler: RPAR handler 
-//         | M=(INC | DEC) {System.out.println("Operator:" + $M.getText());} handler 
-//         | X=(SLASH | STAR | MOD) {System.out.println("Operator:" + $X.getText());} expression 
-//         | Y=(PLUS | DASH) {System.out.println("Operator:" + $Y.getText());} expression 
-//         | Z=(GREATER_THAN | LESS_THAN) {System.out.println("Operator:" + $Z.getText());} expression 
-//         | F=(EQUAL | NOT_EQUAL) {System.out.println("Operator:" + $F.getText());} expression 
-//         | LAND {System.out.println("Operator:&&");} expression 
-//         | LOR {System.out.println("Operator:||");} expression 
-//         | ASSIGNMENT_OPERATOR {System.out.println("Operator:=");} expression 
-//         | ;
-postfix_operator: INC | DEC;
-prefix_operator: DASH | NOT_OPERATOR | INC | DEC;
+varDeclaration returns[VarDeclaration varDec]: idd=identifier {$varDec.setVarName($idd.identity);} COLON 
+            tp=type {$varDec.setType($tp.absType)} SEMICOLLON;
+
+method returns[MethodDeclaration methodDec]: DEF (abs=type {$methodDec.setReturnType($abs.absType);} 
+            | VOID {$methodDec.setReturnType(new NullType());})
+            id=identifier {$methodDec.setMethodName($id.identity);} 
+            LPAR ma=methodArguments {$methodDec.setArgs($ma.methodArgs)} RPAR 
+            LBRACE mb=methodBody {$methodDec.setLocalVars($mb.localVars); $methodDec.setBody($mb.body);} RBRACE;
+
+constructor returns[ConstructorDeclaration constructorDec]: DEF id=identifier {$constructorDec = new ConstructorDeclaration($id.identity);} 
+            LPAR ma=methodArguments {$constructorDec.setArgs($ma.methodArgs)} RPAR 
+            LBRACE mb=methodBody {$constructorDec.setLocalVars($mb.localVars); $constructorDec.setBody($mb.body);} RBRACE;
+
+methodArguments returns[ArrayList<VarDeclaration> methodArgs]: (vwt1=variableWithType {$methodArgs.add($vwt1.varDecwType);} 
+            (COMMA vwt2=variableWithType {$methodArgs.add($vwt2.varDecwType);})*)?;
+
+variableWithType returns[VarDeclaration varDecwType]: vid=identifier {$varDecwType.setVarName($vid.identity);} 
+            COLON vtp=type {$varDecwType.setType($vtp.absType);};
+
+type returns[Type absType]: pdt=primitiveDataType {$absType = $pdt.pType;} 
+            | lt=listType {$absType = $lt.list_type;}
+            | fpt=functionPointerType {$absType = $fpt.functionPointer;}
+            | ct=classType {$absType = $ct.cType;}
+            ;
+
+classType returns[ClassType cType]: id=identifier{$cType.setClassName($id.identity);};
+
+listType returns [ListType list_type]: LIST LPAR ((INT_VALUE SHARP tp=type {$list_type = new ListType($INT_VALUE.getInt(), tp.absType)}) 
+            | (lits=listItemsTypes {$list_type = new ListType($lits.elementTypes)})) RPAR;
+
+listItemsTypes returns [ArrayList<ListNameType> elementTypes]: lit1=listItemType {$elementTypes.add($lit1.listnametype)} 
+            (COMMA lit2=listItemType {$elementTypes.add($lit2.listnametype)})*;
+
+listItemType returns [ListNameType listnametype]: vwt=variableWithType {$listnametype = new ListNameType($vwt.varDecwType);}
+            | tp=type {$listnametype = new ListNameType($tp.absType);};
+
+functionPointerType returns[FptrType functionPointer]: FUNC LESS_THAN 
+            (VOID /*NOTE: nothing because list must be empty */| twc=typesWithComma {$functionPointer.setArgumentsTypes($twc.types);}) 
+            ARROW (VOID {$functionPointer.setReturnType(new NullType());} | tp=type {$functionPointer.setReturnType($tp.absType);}) 
+            GREATER_THAN;
+
+typesWithComma returns[ArrayList<Type> types]: t1=type {$types.add($t1.absType);} 
+            (COMMA t2=type {$types.add($t2.absType);} )*;
+
+primitiveDataType returns[Type pType]: INT {$pType = new IntType();} 
+            | STRING {$pType = new StringType();}
+            | BOOLEAN {$pType = new BoolType();};
+
+methodBody returns[ArrayList<VarDeclaration> localVars, ArrayList<Statement> body]: (varDecs=varDeclaration {$localVars.add($varDecs.varDec)})* 
+            (stats=statement {$body.add($stats.statemnt)})*;
+
+statement returns[Statement statemnt]: fs=forStatement {$statemnt = $fs.forstmnt;}
+            | fes=foreachStatement {$statemnt = $fes.foreachstmnt;}
+            | is=ifStatement {$statemnt = $is.ifelsestmnt;}
+            | ass=assignmentStatement {$statemnt = $ass.assignmentstmnt;}
+            | ps=printStatement {$statemnt = $ps.printstmnt;}
+            | cbs=continueBreakStatement {$statemnt = $cbs.controlstmnt;}
+            | mcs=methodCallStatement {$statemnt = $mcs.methodcallstmnt;}
+            | rs=returnStatement {$statemnt = $rs.returnstmnt;}
+            | b=block {$statemnt = $b.blockstmnt;}
+            ;
+
+block returns[BlockStmt blockstmnt]: LBRACE (stm=statement {$blockstmnt.addStatement($stm.statemnt);})* RBRACE;
+
+assignmentStatement returns[AssignmentStmt assignmentstmnt]: ass=assignment {$assignmentstmnt = $ass.assignments} SEMICOLLON;
+
+assignment returns[AssignmentStmt assignments]: ox=orExpression {$assignments.setlVal($ox.expr);} 
+            ASSIGN  ex=expression {$assignments.setlVal($ex.expr);};
+
+printStatement returns[PrintStmt printstmnt]: PRINT LPAR exp=expression {$printstmnt.setArg($exp.expr);} RPAR SEMICOLLON;
+
+returnStatement returns[RetrunStmt returnstmnt]: RETURN (exp=expression {$returnstmnt.setReturnedExpr($exp.expr);})? SEMICOLLON;
+
+methodCallStatement returns[MethodCallStmt methodcallstmnt]: mc=methodCall {$methodcallstmnt.setMethodCall($mc.mCall);} SEMICOLLON;
+
+methodCall returns[MethodCall mCall] locals[Expression exp]: oex=otherExpression  {$exp = $oex.otherExpr;} 
+            (
+            (LPAR mca=methodCallArguments {$exp = new MethodCall($exp, $mca.arguments);} RPAR) 
+            | (DOT id=identifier {$exp = new ObjectOrListMemberAccess($exp, $id.identity);}) 
+            | (LBRACK ex=expression {$exp = new ListAccessByIndex($exp, $ex.expr);} RBRACK)
+            )* 
+            (LPAR mca2=methodCallArguments {mCall = new MethodCall($exp, $mca2.arguments);} RPAR);
+
+methodCallArguments returns[ArrayList<Expression> arguments]: (expr1=expression {$arguments.add($expr1.expr);} 
+            (COMMA expr2=expression {$arguments.add($expr2.expr);})*)?;
+
+continueBreakStatement returns[statement controlstmnt]: (BREAK {$controlstmnt = new BreakStmt();}
+            | CONTINUE {$controlstmnt = new ContinueStmt();}) 
+            SEMICOLLON;
+
+forStatement returns[ForStmt forstmnt]: FOR 
+            LPAR (ass1=assignment {$forstmnt.setInitialize($ass1.assignments);} )? SEMICOLLON 
+            (xp=expression {$forstmnt.setCondition($xp.expr);})? SEMICOLLON 
+            (ass2=assignment {$forstmnt.setUpdate($ass2.assignments);})? RPAR 
+            stm=statement {$forstmnt.setBody($stm.statemnt);}
+            ;
+
+foreachStatement returns[ForeachStmt foreachstmnt]: FOREACH 
+            LPAR id=identifier {$foreachstmnt.setVariable($id.identity);}
+            IN exp=expression {$foreachstmnt.setList($exp.expr);}
+            RPAR stm=statement{$foreachstmnt.setBody($stm.statemnt);}
+            ;
+
+ifStatement returns[ConditionalStmt ifelsestmnt]: IF 
+            LPAR exp=expression {$ifelsestmnt.setCondition($exp.expr);}
+            RPAR stm1=statement {$ifelsestmnt.setThenBody($stm1.statemnt);}
+            (ELSE stm2=statement {$ifelsestmnt.setElseBody($stm2.statemnt);})?
+            ;
+
+expression returns[Expression expr]: ore1=orExpression {$expr = $ore1.expr;}
+            (ASSIGN ore2=expression {$expr = new BinaryExpression($expr, $ore2.expr, BinaryOperator.or);})?;
+
+orExpression returns[Expression expr]: ane1=andExpression {$expr = $ane1.expr;} 
+            (OR ane2=andExpression {$expr = new BinaryExpression($expr, $ane2.expr, BinaryOperator.or);})*;
+
+andExpression returns[Expression expr]: eqe1=equalityExpression {$expr = $eqe1.expr;}
+            (AND eqe2=equalityExpression {$expr = new BinaryExpression($expr, $eqe2.expr, BinaryOperator.and);})*;
+
+equalityExpression returns[Expression expr] locals[BinaryOperator op]: ree1=relationalExpression {$expr = $ree1.expr;}
+            ((EQUAL {$op = BinaryOperator.eq;}| NOT_EQUAL {$op = BinaryOperator.neq;}) 
+            ree2=relationalExpression {$expr = new BinaryExpression($expr, $ree2.expr, $op);})*;
+
+relationalExpression returns[Expression expr] locals[BinaryOperator op]: ade1=additiveExpression  {$expr = $ade1.expr;}
+            ((GREATER_THAN {$op = BinaryOperator.gt;}| LESS_THAN {$op = BinaryOperator.lt;}) 
+            ade2=additiveExpression {$expr = new BinaryExpression($expr, $ade2.expr, $op);})*;
+
+additiveExpression returns[Expression expr] locals[BinaryOperator op]: mce1=multiplicativeExpression {$expr = $mce1.expr;}
+            ((PLUS {$op = BinaryOperator.add;} | MINUS {$op = BinaryOperator.sub;}) 
+            mce2=multiplicativeExpression {$expr = new BinaryExpression($expr, $mce2.expr, $op);})*;
+
+multiplicativeExpression returns[Expression expr] locals[BinaryOperator op]: pue1=preUnaryExpression{$expr = $pue1.expr;} 
+            ((MULT {$op = BinaryOperator.mult;} | DIVIDE {$op = BinaryOperator.div;} | MOD {$op = BinaryOperator.mod;}) 
+            pue2=preUnaryExpression {$expr = new BinaryExpression($expr, $pue2.expr, $op);})*;
+
+preUnaryExpression returns[Expression expr] locals[UnaryOperator op]: ((NOT {$op = UnaryOperator.not;} 
+            | MINUS {$op = UnaryOperator.minus;} 
+            | INCREMENT {$op = UnaryOperator.preinc;}
+            | DECREMENT {$op = UnaryOperator.predec;}) 
+            preue=preUnaryExpression {$expr = new UnaryExpression($preue.expr, $op);}) 
+            | postue=postUnaryExpression {$expr = $postue.expr;};
+
+postUnaryExpression returns[Expression expr]: aex=accessExpression {$expr = $aex.exp;}
+            (
+            INCREMENT {$expr = new UnaryExpression($expr, UnaryOperator.postinc);} 
+            | DECREMENT {$expr = new UnaryExpression($expr, UnaryOperator.postdec);}
+            )?
+            ;
+
+accessExpression returns[Expression exp]: oex=otherExpression {$exp = $oex.otherExpr;} 
+            ((LPAR mca=methodCallArguments {$exp = new MethodCall($exp, $mca.arguments);}RPAR)  
+            | (DOT id=identifier {$exp = new ObjectOrListMemberAccess($exp, $id.identity);}) 
+            | (LBRACK ex=expression {$exp = new ListAccessByIndex($exp, $ex.expr);} RBRACK))*;
+
+otherExpression returns[Expression otherExpr]: THIS {$otherExpr = new ThisClass();} 
+            | ne=newExpression {$otherExpr = $ne.classInstance} 
+            | vs=values {$otherExpr = $vs.val;} 
+            | identi=identifier {$otherExpr = $identi.identity} 
+            | LPAR (expp=expression {$otherExpr = $expp.expr}) RPAR;
+
+newExpression returns[NewClassInstance classInstance]: NEW 
+            ct=classType {$classInstance = new NewClassInstance($ct.cType);} 
+            LPAR mca=methodCallArguments {$classInstance.setArgs($mca.arguments);} 
+            RPAR
+            ;
+//TODO: check getInt()
+values returns[Value val]: bv=boolValue {$val = $bv.boolVal;} 
+            | STRING_VALUE {$val = new StringValue($STRING_VALUE.getText());} 
+            | INT_VALUE {$val = new IntValue($INT_VALUE.getInt());} 
+            | NULL {$val = new NullValue();} 
+            | lv=listValue {$val = $lv.listVal;}
+            ;
+
+boolValue returns[BoolValue boolVal]: TRUE {$boolVal.setConstant(true);} 
+            | FALSE {$boolVal.setConstant(false);};
+
+listValue returns[ListValue listVal]: LBRACK mca=methodCallArguments {$listVal.setElements($mca.arguments);} RBRACK;
+
+identifier returns[Identifier identity]: IDENTIFIER {$identity.setName($IDENTIFIER.getText());};
 
 
-//values and variables
-value: LITERAL | variable | class_isntantiation | empty_bracket | NULL;
-empty_bracket: LBRACK parameters RBRACK;
-class_isntantiation: NEW IDENTIFIER LPAR parameters RPAR;
-variable: (IDENTIFIER | list_refrence | method_call | THIS) (dot_refrence | bracket_indexing | extra_parantheses)*;
-extra_parantheses: LPAR parameters RPAR;
-list_refrence: IDENTIFIER bracket_indexing;
-method_call: IDENTIFIER LPAR parameters RPAR;
-parameters: (expression (COMMA expression)*)?;
-dot_refrence: DOT (IDENTIFIER | list_refrence | method_call);
-bracket_indexing: LBRACK expression RBRACK;
-
-//--------------------------------------------------------------------------------
-
-//TOKENS
-THIS: 'this';
 DEF: 'def';
-FUNC: 'func';
-VOID: 'void';
-IN: 'in';
-NEW: 'new';
-NULL: 'null';
-CLASSDEC: 'class';
-INHERITANCE: 'extends';
-RETURN: 'return';
+EXTENDS: 'extends';
+CLASS: 'class';
+
 PRINT: 'print';
+FUNC: 'func';
+
+NEW: 'new';
+
+CONTINUE: 'continue';
+BREAK: 'break';
+RETURN: 'return';
+
+FOREACH: 'foreach';
+IN: 'in';
+FOR: 'for';
 IF: 'if';
 ELSE: 'else';
-FOR: 'for';
-FOREACH: 'foreach';
-CONTROL: 'break' | 'continue';
-types: type (COMMA type)*;
-type: PRIMITIVE_TYPE | func_refrense | list_declaration | IDENTIFIER;
-list_declaration: (LIST LPAR list_parameters RPAR)
-                | (LIST LPAR value HASH type RPAR);
-list_parameters: (variable_declaration | type) (COMMA (variable_declaration | type))*;
-func_refrense: FUNC LESS_THAN (types | VOID) ARROW (type | VOID) GREATER_THAN;
-PRIMITIVE_TYPE: 'int' | 'boolean' | 'string';
 
-//symbols
-PLUS: '+';
-STAR: '*';
-SLASH: '/';
-MOD: '%';
-DASH: '-';
-INC: '++';
-DEC: '--';
-EQUAL: '==';
-NOT_EQUAL: '!=';
+BOOLEAN: 'bool';
+STRING: 'string';
+INT: 'int';
+VOID: 'void';
+NULL: 'null';
+LIST: 'list';
+
+TRUE: 'true';
+FALSE: 'false';
+
+THIS: 'this';
+
 ARROW: '->';
 GREATER_THAN: '>';
 LESS_THAN: '<';
-LAND: '&&';
-LOR: '||';
-NOT_OPERATOR: '!';
-ASSIGNMENT_OPERATOR: '=';
-LITERAL: INTEGER | STRING | BOOL_VALUE;
-SEMICOLON: ';';
-LBRACE: '{';
-COLON: ':';
-RBRACE: '}';
+NOT_EQUAL: '!=';
+EQUAL: '==';
+
+MULT: '*';
+DIVIDE: '/';
+MOD: '%';
+PLUS: '+';
+MINUS: '-';
+AND: '&&';
+OR: '||';
+NOT: '!';
+QUESTION_MARK: '?';
+
+ASSIGN: '=';
+
+INCREMENT: '++';
+DECREMENT: '--';
+
 LPAR: '(';
 RPAR: ')';
 LBRACK: '[';
-DOT: '.';
-COMMA: ',';
-HASH: '#';
 RBRACK: ']';
+LBRACE: '{';
+RBRACE: '}';
 
-//typedefs
-STRING: '"' ~('"')* '"';
-INTEGER: (NONZERODIGIT DIGIT*) | [0];
-LIST : 'list';
-BOOL_VALUE: 'true' | 'false';
-IDENTIFIER: (LETTER | UNDERSCORE) (LETTER | DIGIT | UNDERSCORE)*;
+SHARP: '#';
+COMMA: ',';
+DOT: '.';
+COLON: ':';
+SEMICOLLON: ';';
 
-//helpers
-LETTER: [a-zA-Z];
-UNDERSCORE: '_';
-DIGIT: [0-9];
-NONZERODIGIT: [1-9];
-
-//white spaces
-WHITESPACE: [ \t\r\n]+ -> skip;
-COMMENT: '//' .*? '\n' -> skip;
-// MLCOMMENT: '/*' .*? '*/' -> skip;
+INT_VALUE: '0' | [1-9][0-9]*;
+IDENTIFIER: [a-zA-Z_][A-Za-z0-9_]*;
+STRING_VALUE: '"'~["]*'"';
+COMMENT: ('//' ~( '\r' | '\n')*) -> skip;
+WS: ([ \t\n\r]) -> skip;
