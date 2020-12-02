@@ -48,12 +48,12 @@ method returns[MethodDeclaration methodDec] locals[Type tp]:
             (abs=type {$tp = $abs.absType;} 
             | VOID {$tp = new NullType();})
             id=identifier {$methodDec = new MethodDeclaration($id.identity, $tp); $methodDec.setLine($DEF.getLine());} 
-            LPAR ma=methodArguments {$methodDec.setArgs($ma.methodArgs)} RPAR 
+            LPAR ma=methodArguments {$methodDec.setArgs($ma.methodArgs);} RPAR
             LBRACE mb=methodBody {$methodDec.setLocalVars($mb.localVars); $methodDec.setBody($mb.body);} RBRACE;
 
 constructor returns[ConstructorDeclaration constructorDec]: 
             DEF id=identifier {$constructorDec = new ConstructorDeclaration($id.identity); $constructorDec.setLine($DEF.getLine());}
-            LPAR ma=methodArguments {$constructorDec.setArgs($ma.methodArgs)} RPAR 
+            LPAR ma=methodArguments {$constructorDec.setArgs($ma.methodArgs);} RPAR
             LBRACE mb=methodBody {$constructorDec.setLocalVars($mb.localVars); $constructorDec.setBody($mb.body);} RBRACE;
 
 methodArguments returns[ArrayList<VarDeclaration> methodArgs]: 
@@ -75,13 +75,13 @@ type returns[Type absType]:
 classType returns[ClassType cType]: id=identifier{$cType = new ClassType($id.identity);};
 
 listType returns [ListType list_type]: LIST LPAR 
-            ((INT_VALUE SHARP tp=type {$list_type = new ListType($INT_VALUE.getInt(), tp.absType)}) 
-            | (lits=listItemsTypes {$list_type = new ListType($lits.elementTypes)})) RPAR;
+            ((INT_VALUE SHARP tp=type {$list_type = new ListType($INT_VALUE.getInt(), $tp.absType);})
+            | (lits=listItemsTypes {$list_type = new ListType($lits.elementTypes);})) RPAR;
 
 listItemsTypes returns [ArrayList<ListNameType> elementTypes]: 
             {$elementTypes = new ArrayList<>();}
-            lit1=listItemType {$elementTypes.add($lit1.listnametype)} 
-            (COMMA lit2=listItemType {$elementTypes.add($lit2.listnametype)})*;
+            lit1=listItemType {$elementTypes.add($lit1.listnametype);}
+            (COMMA lit2=listItemType {$elementTypes.add($lit2.listnametype);})*;
 
 listItemType returns [ListNameType listnametype]: 
             vwt=variableWithType {$listnametype = new ListNameType($vwt.varDecwType);}
@@ -106,8 +106,8 @@ primitiveDataType returns[Type pType]:
 
 methodBody returns[ArrayList<VarDeclaration> localVars, ArrayList<Statement> body]:
             {$localVars = new ArrayList<>(); $body = new ArrayList<>();}
-            (varDecs=varDeclaration {$localVars.add($varDecs.varDec)})* 
-            (stats=statement {$body.add($stats.statemnt)})*;
+            (varDecs=varDeclaration {$localVars.add($varDecs.varDec);})*
+            (stats=statement {$body.add($stats.statemnt);})*;
 
 statement returns[Statement statemnt]: fs=forStatement {$statemnt = $fs.forstmnt;}
             | fes=foreachStatement {$statemnt = $fes.foreachstmnt;}
@@ -125,7 +125,7 @@ block returns[BlockStmt blockstmnt]:
             (stm=statement {$blockstmnt.addStatement($stm.statemnt);})* 
             RBRACE;
 
-assignmentStatement returns[AssignmentStmt assignmentstmnt]: ass=assignment {$assignmentstmnt = $ass.assignments} SEMICOLLON;
+assignmentStatement returns[AssignmentStmt assignmentstmnt]: ass=assignment {$assignmentstmnt = $ass.assignments;} SEMICOLLON;
 
 assignment returns[AssignmentStmt assignments]: 
             ox=orExpression
@@ -244,10 +244,10 @@ accessExpression returns[Expression exp]:
 //TODO: check if lpar expr rpar should get line from elsewhere
 otherExpression returns[Expression otherExpr]: 
             THIS {$otherExpr = new ThisClass(); $otherExpr.setLine($THIS.getLine());} 
-            | ne=newExpression {$otherExpr = $ne.classInstance} 
+            | ne=newExpression {$otherExpr = $ne.classInstance;}
             | vs=values {$otherExpr = $vs.val;} 
-            | identi=identifier {$otherExpr = $identi.identity} 
-            | LPAR (expp=expression {$otherExpr = $expp.expr}) RPAR;
+            | identi=identifier {$otherExpr = $identi.identity;}
+            | LPAR (expp=expression {$otherExpr = $expp.expr;}) RPAR;
 
 newExpression returns[NewClassInstance classInstance]: NEW 
             ct=classType {$classInstance = new NewClassInstance($ct.cType); $classInstance.setLine($NEW.getLine());} 
