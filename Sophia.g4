@@ -149,9 +149,9 @@ methodCallStatement returns[MethodCallStmt methodcallstmnt]:
 methodCall returns[MethodCall mCall] locals[Expression exp]:
             oex=otherExpression  {$exp = $oex.otherExpr;}
             (
-            (LPAR mca=methodCallArguments {$exp = new MethodCall($exp, $mca.arguments);} RPAR)
-            | (DOT id=identifier {$exp = new ObjectOrListMemberAccess($exp, $id.identity);})
-            | (LBRACK ex=expression {$exp = new ListAccessByIndex($exp, $ex.expr);} RBRACK)
+            (LPAR mca=methodCallArguments {$exp = new MethodCall($exp, $mca.arguments); $exp.setLine($LPAR.getLine());} RPAR)
+            | (DOT id=identifier {$exp = new ObjectOrListMemberAccess($exp, $id.identity); $exp.setLine($DOT.getLine());})
+            | (LBRACK ex=expression {$exp = new ListAccessByIndex($exp, $ex.expr); $exp.setLine($LBRACK.getLine());} RBRACK)
             )*
             (lp=LPAR mca2=methodCallArguments {$mCall = new MethodCall($exp, $mca2.arguments); $mCall.setLine($lp.getLine());} RPAR);
 
