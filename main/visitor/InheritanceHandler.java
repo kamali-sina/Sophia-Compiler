@@ -26,12 +26,25 @@ import main.symbolTable.items.LocalVariableSymbolTableItem;
 import main.symbolTable.items.MethodSymbolTableItem;
 import main.symbolTable.utils.Stack;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+
 public class InheritanceHandler extends Visitor<Void> {
 
     private Stack<SymbolTable> stack = new Stack<>();
     private SymbolTable top;
     private SymbolTable root;
     private int numberErrors = 0;
+    private Set<String> errors = new HashSet<>();
+
+    public void setInfo(NameCollector nameCollector) {
+        this.setStack(nameCollector.getStack());
+        this.setTop(nameCollector.getTop());
+        this.setRoot(nameCollector.getRoot());
+        this.setNumberErrors(nameCollector.getNumberErrors());
+        this.setErrors(nameCollector.getErrors());
+    }
 
     public void setStack(Stack<SymbolTable> stack) {
         this.stack = stack;
@@ -53,12 +66,48 @@ public class InheritanceHandler extends Visitor<Void> {
         return this.numberErrors;
     }
 
+    public void setErrors(Set<String> errors) { this.errors = errors; }
+
+    private void checkInheritanceCycle(ClassDeclaration classDeclaration) {
+        Set<SymbolTable> visitedSymbolTables = new HashSet<>();
+        try {
+            // Find classSymbolTableItem
+            ClassSymbolTableItem classSymbolTableItem = (ClassSymbolTableItem) this.root.getItem(
+                    "Class_"+classDeclaration.getClassName().getName(), true);
+            // Find parent
+            SymbolTable currentSymbolTable = classSymbolTableItem.getClassSymbolTable().pre;
+            while(currentSymbolTable != null && (!visitedSymbolTables.contains(currentSymbolTable))) {
+                visitedSymbolTables.add(currentSymbolTable);
+                if (currentSymbolTable == classSymbolTableItem.getClassSymbolTable()) {
+                    //ErrorItemMessage: Class <ClassName> is in an inheritance cycle
+                    //
+                    if (!this.errors.contains("Line:"+classDeclaration.getLine()+
+                            ":Class "+classDeclaration.getClassName().getName()+" is in an inheritance cycle")) {
+                        this.errors.add("Line:"+classDeclaration.getLine()+
+                                ":Class "+classDeclaration.getClassName().getName()+" is in an inheritance cycle");
+                        this.numberErrors += 1;
+                        {System.out.println("Line:"+classDeclaration.getLine()+
+                                ":Class "+classDeclaration.getClassName().getName()+" is in an inheritance cycle");}
+                    }
+                    //
+                    break;
+                }
+                currentSymbolTable = currentSymbolTable.pre;
+            }
+        } catch (ItemNotFoundException e) {
+            //
+        }
+    }
+
     //Line:<LineNumber>:<ErrorItemMessage>
 
     @Override
     public Void visit(Program program) {
         for (ClassDeclaration programClass : program.getClasses()) {
             programClass.accept(this);
+        }
+        for (ClassDeclaration classDeclaration : program.getClasses()) {
+            checkInheritanceCycle(classDeclaration);
         }
         return null;
     }
@@ -71,50 +120,32 @@ public class InheritanceHandler extends Visitor<Void> {
                     "Class_"+classDeclaration.getClassName().getName(), true);
             try {
                 // Find parentClassSymbolTableItem
-                if(classDeclaration.getParentClassName() != null) {
+                if (classDeclaration.getParentClassName() != null) {
                     ClassSymbolTableItem parentClassSymbolTable = (ClassSymbolTableItem) this.root.getItem(
                             "Class_"+classDeclaration.getParentClassName().getName(), true);
                     classSymbolTableItem.getClassSymbolTable().pre = parentClassSymbolTable.getClassSymbolTable();
-                    do {
-                        try {
-                            // Check class name in parents
-                            classSymbolTableItem.getClassSymbolTable().getItem(
-                                    classSymbolTableItem.getKey(), false);
-                            // ErrorItemMessage: Redefinition of class <ClassName>
-                            if(classSymbolTableItem.getName().indexOf('`') == -1) {
-                                this.numberErrors += 1;
-                                {System.out.println("Line:"+classDeclaration.getLine()+
-                                        ":Redefinition of class "+classSymbolTableItem.getName());}
-                            }
-                            Identifier newName = new Identifier(classSymbolTableItem.getName()+"`");
-                            classDeclaration.setClassName(newName);
-                            classSymbolTableItem.setClassDeclaration(classDeclaration);
-                        } catch (ItemNotFoundException e) {
-                            break;
-                        }
-                    } while (true);
-                }
-                // updating stack
-                this.stack.push(classSymbolTableItem.getClassSymbolTable());
-                SymbolTable prev = this.top;
-                this.top = classSymbolTableItem.getClassSymbolTable();
-                //
-                classDeclaration.getClassName().accept(this);
-                if(classDeclaration.getParentClassName() != null) {
+
+                    // updating stack
+                    this.stack.push(classSymbolTableItem.getClassSymbolTable());
+                    SymbolTable prev = this.top;
+                    this.top = classSymbolTableItem.getClassSymbolTable();
+                    //
+                    classDeclaration.getClassName().accept(this);
                     classDeclaration.getParentClassName().accept(this);
+                    for (FieldDeclaration field : classDeclaration.getFields()) {
+                        field.accept(this);
+                    }
+                    if (classDeclaration.getConstructor() != null) {
+                        classDeclaration.getConstructor().accept(this);
+                    }
+                    for (MethodDeclaration method : classDeclaration.getMethods()) {
+                        method.accept(this);
+                    }
+                    // updating stack
+                    this.stack.pop();
+                    this.top = prev;
                 }
-                for (FieldDeclaration field : classDeclaration.getFields()) {
-                    field.accept(this);
-                }
-                if (classDeclaration.getConstructor() != null) {
-                    classDeclaration.getConstructor().accept(this);
-                }
-                for (MethodDeclaration method : classDeclaration.getMethods()) {
-                    method.accept(this);
-                }
-                // updating stack
-                this.stack.pop();
-                this.top = prev;
+
             } catch (ItemNotFoundException e) {
                 //
             }
@@ -129,43 +160,56 @@ public class InheritanceHandler extends Visitor<Void> {
         try {
             // Find methodSymbolTableItem
             MethodSymbolTableItem methodSymbolTableItem = (MethodSymbolTableItem) this.top.getItem(
-                    "Method_"+constructorDeclaration.getMethodName().getName(),false);
+                    "Method_"+constructorDeclaration.getMethodName().getName(),true);
             try {
                 // Find methodSymbolTableItem name in parents
-                methodSymbolTableItem.getMethodSymbolTable().getItem(methodSymbolTableItem.getKey(), false);
+                this.top.getItem(methodSymbolTableItem.getKey(), false);
                 // ErrorItemMessage: Redefinition of method <MethodName>
-                this.numberErrors += 1;
-                {System.out.println("Line:"+constructorDeclaration.getLine()+
-                        ":Redefinition of method "+methodSymbolTableItem.getName());}
-            } catch (ItemNotFoundException e) {
-                try {
-                    methodSymbolTableItem.getMethodSymbolTable().getItem(
-                            "Field_"+constructorDeclaration.getMethodName().getName(), false);
-                    // ErrorItemMessage: Redefinition of method <MethodName>
+                //
+                if (!this.errors.contains("Line:"+constructorDeclaration.getLine()+
+                        ":Redefinition of method "+methodSymbolTableItem.getName())) {
+                    this.errors.add("Line:"+constructorDeclaration.getLine()+
+                            ":Redefinition of method "+methodSymbolTableItem.getName());
                     this.numberErrors += 1;
                     {System.out.println("Line:"+constructorDeclaration.getLine()+
-                            ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");}
+                            ":Redefinition of method "+methodSymbolTableItem.getName());}
+                }
+                //
+                this.stack.push(methodSymbolTableItem.getMethodSymbolTable());
+                SymbolTable prev = this.top;
+                this.top = methodSymbolTableItem.getMethodSymbolTable();
+                //
+                constructorDeclaration.getMethodName().accept(this);
+                for (Statement body : constructorDeclaration.getBody()) {
+                    body.accept(this);
+                }
+                // updating stack
+                this.stack.pop();
+                this.top = prev;
+            } catch (ItemNotFoundException e) {
+                //
+            }
+            if (!methodSymbolTableItem.getFieldConflict()) {
+                try {
+                    this.top.getItem(
+                            "Field_"+constructorDeclaration.getMethodName().getName(), false);
+                    // ErrorItemMessage: Redefinition of method <MethodName>
+                    //
+                    if (!this.errors.contains("Line:"+constructorDeclaration.getLine()+
+                            ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name")) {
+                        this.errors.add("Line:"+constructorDeclaration.getLine()+
+                                ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");
+                        this.numberErrors += 1;
+                        methodSymbolTableItem.setFieldConflict();
+                        {System.out.println("Line:"+constructorDeclaration.getLine()+
+                                ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");}
+                    }
+                    //
                 } catch (ItemNotFoundException er) {
                     //
-                    this.stack.push(methodSymbolTableItem.getMethodSymbolTable());
-                    SymbolTable prev = this.top;
-                    this.top = methodSymbolTableItem.getMethodSymbolTable();
-                    //
-                    constructorDeclaration.getMethodName().accept(this);
-                    for (VarDeclaration arg : constructorDeclaration.getArgs()) {
-                        arg.accept(this);
-                    }
-                    for (VarDeclaration localVar : constructorDeclaration.getLocalVars()) {
-                        localVar.accept(this);
-                    }
-                    for (Statement body : constructorDeclaration.getBody()) {
-                        body.accept(this);
-                    }
-                    // updating stack
-                    this.stack.pop();
-                    this.top = prev;
                 }
             }
+            // they were here before
         } catch (ItemNotFoundException e) {
             //
         }
@@ -177,44 +221,58 @@ public class InheritanceHandler extends Visitor<Void> {
         try {
             // Find methodSymbolTableItem
             MethodSymbolTableItem methodSymbolTableItem = (MethodSymbolTableItem) this.top.getItem(
-                    "Method_"+methodDeclaration.getMethodName().getName() ,false);
+                    "Method_"+methodDeclaration.getMethodName().getName() ,true);
             try {
                 // Find methodSymbolTableItem name in parents
-                methodSymbolTableItem.getMethodSymbolTable().getItem(methodSymbolTableItem.getKey(), false);
+                this.top.getItem(methodSymbolTableItem.getKey(), false);
                 // ErrorItemMessage: Redefinition of method <MethodName>
-                this.numberErrors += 1;
-                {System.out.println("Line:"+methodDeclaration.getLine()+
-                        ":Redefinition of method "+methodSymbolTableItem.getName());}
-            } catch (ItemNotFoundException e) {
-                try {
-                    methodSymbolTableItem.getMethodSymbolTable().getItem(
-                            "Field_"+methodDeclaration.getMethodName().getName(), false);
-                    // ErrorItemMessage: Redefinition of method <MethodName>
+                //
+                if (!this.errors.contains("Line:"+methodDeclaration.getLine()+
+                        ":Redefinition of method "+methodSymbolTableItem.getName())) {
+                    this.errors.add("Line:"+methodDeclaration.getLine()+
+                            ":Redefinition of method "+methodSymbolTableItem.getName());
                     this.numberErrors += 1;
                     {System.out.println("Line:"+methodDeclaration.getLine()+
-                            ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");}
-                } catch (ItemNotFoundException er) {
-                    // updating stack
-                    this.stack.push(methodSymbolTableItem.getMethodSymbolTable());
-                    SymbolTable prev = this.top;
-                    this.top = methodSymbolTableItem.getMethodSymbolTable();
-                    //
-                    methodDeclaration.getMethodName().accept(this);
-                    for (VarDeclaration arg : methodDeclaration.getArgs()) {
-                        arg.accept(this);
-                    }
-                    for (VarDeclaration localVar : methodDeclaration.getLocalVars()) {
-                        localVar.accept(this);
-                    }
-                    for (Statement body : methodDeclaration.getBody()) {
-                        body.accept(this);
-                    }
-                    // updating stack
-                    this.stack.pop();
-                    this.top = prev;
+                            ":Redefinition of method "+methodSymbolTableItem.getName());}
                 }
                 //
+                // updating stack
+                this.stack.push(methodSymbolTableItem.getMethodSymbolTable());
+                SymbolTable prev = this.top;
+                this.top = methodSymbolTableItem.getMethodSymbolTable();
+                //
+                methodDeclaration.getMethodName().accept(this);
+                for (Statement body : methodDeclaration.getBody()) {
+                    body.accept(this);
+                }
+                // updating stack
+                this.stack.pop();
+                this.top = prev;
+                //
+            } catch (ItemNotFoundException e) {
+                //
             }
+            if (!methodSymbolTableItem.getFieldConflict()) {
+                try {
+                    this.top.getItem(
+                            "Field_"+methodDeclaration.getMethodName().getName(), false);
+                    // ErrorItemMessage: Redefinition of method <MethodName>
+                    //
+                    if (!this.errors.contains("Line:"+methodDeclaration.getLine()+
+                            ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name")) {
+                        this.errors.add("Line:"+methodDeclaration.getLine()+
+                                ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");
+                        this.numberErrors += 1;
+                        methodSymbolTableItem.setFieldConflict();
+                        {System.out.println("Line:"+methodDeclaration.getLine()+
+                                ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");}
+                    }
+                    //
+                } catch (ItemNotFoundException er) {
+                    //
+                }
+            }
+            // they were here before
         } catch (ItemNotFoundException e) {
             //
         }
@@ -226,14 +284,48 @@ public class InheritanceHandler extends Visitor<Void> {
         try {
             // Find fieldSymbolTableItem
             FieldSymbolTableItem fieldSymbolTableItem = (FieldSymbolTableItem) this.top.getItem(
-                    "Field_"+fieldDeclaration.getVarDeclaration().getVarName().getName(), false);
+                    "Field_"+fieldDeclaration.getVarDeclaration().getVarName().getName(), true);
             try {
                 // Find fieldSymbolTableItem in parents
                 this.top.getItem(fieldSymbolTableItem.getKey(), false);
-                this.numberErrors += 1;
-                {System.out.println("Line:"+fieldDeclaration.getLine()+
-                        ":Redefinition of field "+fieldSymbolTableItem.getName());}
+                //
+                if (!this.errors.contains("Line:"+fieldDeclaration.getLine()+
+                        ":Redefinition of field "+fieldSymbolTableItem.getName())) {
+                    this.errors.add("Line:"+fieldDeclaration.getLine()+
+                            ":Redefinition of field "+fieldSymbolTableItem.getName());
+                    this.numberErrors += 1;
+                    {System.out.println("Line:"+fieldDeclaration.getLine()+
+                            ":Redefinition of field "+fieldSymbolTableItem.getName());}
+                }
+                //
             } catch (ItemNotFoundException e) {
+                // Find classSymbolTableItem
+                SymbolTable currentSymbolTable = this.top.pre;
+                Set<SymbolTable> visitedSymbolTables = new HashSet<>();
+                while((currentSymbolTable != null) && (!visitedSymbolTables.contains(currentSymbolTable))) {
+                    visitedSymbolTables.add(currentSymbolTable);
+                    try {
+                        MethodSymbolTableItem methodSymbolTableItem = (MethodSymbolTableItem) currentSymbolTable.getItem("Method_"+fieldDeclaration.getVarDeclaration().getVarName().getName(), true);
+                        if (!methodSymbolTableItem.getFieldConflict()) {
+                            //ErrorItemMessage: Class <ClassName> is in an inheritance cycle
+                            for (Integer line : methodSymbolTableItem.getLines()) {
+                                //
+                                if (!this.errors.contains("Line:"+line+
+                                        ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name")) {
+                                    this.errors.add("Line:"+line+
+                                            ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");
+                                    this.numberErrors += 1;
+                                    {System.out.println("Line:"+line+
+                                            ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");}
+                                }
+                                //
+                            }
+                        }
+                    } catch (ItemNotFoundException itemNotFoundException) {
+                        //
+                    }
+                    currentSymbolTable = currentSymbolTable.pre;
+                }
                 fieldDeclaration.getVarDeclaration().accept(this);
             }
         } catch (ItemNotFoundException e) {
@@ -248,14 +340,21 @@ public class InheritanceHandler extends Visitor<Void> {
             // Find localVariableSymbolTableItem
             LocalVariableSymbolTableItem localVariableSymbolTableItem =
                     (LocalVariableSymbolTableItem) this.top.getItem("Var_"+varDeclaration.getVarName().getName()
-                            , false);
+                            , true);
             try {
                 // Find localVariableSymbolTableItem in parents
                 this.top.getItem(localVariableSymbolTableItem.getKey(), false);
                 // ErrorItemMessage: Redefinition of local variable <VariableName>
-                this.numberErrors += 1;
-                {System.out.println("Line:"+varDeclaration.getLine()+
-                        ":Redefinition of local variable "+localVariableSymbolTableItem.getName());}
+                //
+                if (!this.errors.contains("Line:"+varDeclaration.getLine()+
+                        ":Redefinition of local variable "+localVariableSymbolTableItem.getName())) {
+                    this.errors.add("Line:"+varDeclaration.getLine()+
+                            ":Redefinition of local variable "+localVariableSymbolTableItem.getName());
+                    this.numberErrors += 1;
+                    {System.out.println("Line:"+varDeclaration.getLine()+
+                            ":Redefinition of local variable "+localVariableSymbolTableItem.getName());}
+                }
+                //
             } catch (ItemNotFoundException e) {
                 varDeclaration.getVarName().accept(this);
             }

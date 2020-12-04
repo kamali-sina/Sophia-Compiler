@@ -20,11 +20,13 @@ import main.ast.nodes.statement.loop.ForeachStmt;
 import main.symbolTable.SymbolTable;
 import main.symbolTable.exceptions.ItemAlreadyExistsException;
 import main.symbolTable.exceptions.ItemNotFoundException;
-import main.symbolTable.items.ClassSymbolTableItem;
-import main.symbolTable.items.FieldSymbolTableItem;
-import main.symbolTable.items.LocalVariableSymbolTableItem;
-import main.symbolTable.items.MethodSymbolTableItem;
+import main.symbolTable.items.*;
 import main.symbolTable.utils.Stack;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class NameCollector extends Visitor<Void> {
 
@@ -32,6 +34,7 @@ public class NameCollector extends Visitor<Void> {
     private SymbolTable top;
     private SymbolTable root;
     private int numberErrors = 0;
+    private Set<String> errors = new HashSet<>();
 
     public Stack<SymbolTable> getStack() {
         return  this.stack;
@@ -48,6 +51,8 @@ public class NameCollector extends Visitor<Void> {
     public int getNumberErrors() {
         return numberErrors;
     }
+
+    public Set<String> getErrors() { return this.errors; }
 
     //Line:<LineNumber>:<ErrorItemMessage>
 
@@ -67,9 +72,9 @@ public class NameCollector extends Visitor<Void> {
 
     @Override
     public Void visit(ClassDeclaration classDeclaration) {
-        // creating item
+        // Creating item
         ClassSymbolTableItem classSymbolTableItem = new ClassSymbolTableItem(classDeclaration);
-        // putting item into symbol table
+        // Putting item into symbol table
         do {
             try {
                 this.top.put(classSymbolTableItem);
@@ -78,12 +83,14 @@ public class NameCollector extends Visitor<Void> {
                 // ErrorItemMessage: Redefinition of class <ClassName>
                 if(classSymbolTableItem.getName().indexOf('`') == -1) {
                     this.numberErrors += 1;
+                    //
+                    this.errors.add("Line:"+classDeclaration.getLine()+
+                            ":Redefinition of class "+classSymbolTableItem.getName());
+                    //
                     {System.out.println("Line:"+classDeclaration.getLine()+
                             ":Redefinition of class "+classSymbolTableItem.getName());}
                 }
-                Identifier newName = new Identifier(classSymbolTableItem.getName()+"`");
-                classDeclaration.setClassName(newName);
-                classSymbolTableItem.setClassDeclaration(classDeclaration);
+                classSymbolTableItem.setName(classSymbolTableItem.getName()+"`");
             }
         } while (true);
         // Adding symbol table to the item
@@ -118,12 +125,23 @@ public class NameCollector extends Visitor<Void> {
     public Void visit(ConstructorDeclaration constructorDeclaration) {
         // creating item
         MethodSymbolTableItem methodSymbolTableItem = new MethodSymbolTableItem(constructorDeclaration);
+        methodSymbolTableItem.addLine(constructorDeclaration.getLine());
         // putting item into symbol table
         try {
             this.top.put(methodSymbolTableItem);
         } catch (ItemAlreadyExistsException e) {
             // ErrorItemMessage: Redefinition of method <MethodName>
             this.numberErrors += 1;
+            try {
+                MethodSymbolTableItem sameMethodSymbolTableItem = (MethodSymbolTableItem) this.top.getItem(methodSymbolTableItem.getKey(), true);
+                sameMethodSymbolTableItem.addLine(constructorDeclaration.getLine());
+            } catch (ItemNotFoundException itemNotFoundException) {
+
+            }
+            //
+            this.errors.add("Line:"+constructorDeclaration.getLine()+
+                    ":Redefinition of method "+methodSymbolTableItem.getName());
+            //
             {System.out.println("Line:"+constructorDeclaration.getLine()+
                     ":Redefinition of method "+methodSymbolTableItem.getName());}
         }
@@ -132,6 +150,11 @@ public class NameCollector extends Visitor<Void> {
             this.top.getItem("Field_"+constructorDeclaration.getMethodName().getName(), true);
             // ErrorItemMessage: Redefinition of method <MethodName>
             this.numberErrors += 1;
+            methodSymbolTableItem.setFieldConflict();
+            //
+            this.errors.add("Line:"+constructorDeclaration.getLine()+
+                    ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");
+            //
             {System.out.println("Line:"+constructorDeclaration.getLine()+
                     ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");}
         } catch (ItemNotFoundException er) {
@@ -166,12 +189,24 @@ public class NameCollector extends Visitor<Void> {
     public Void visit(MethodDeclaration methodDeclaration) {
         // Creating item
         MethodSymbolTableItem methodSymbolTableItem = new MethodSymbolTableItem(methodDeclaration);
+        methodSymbolTableItem.addLine(methodDeclaration.getLine());
         // Putting item into symbol table
         try {
             this.top.put(methodSymbolTableItem);
         } catch (ItemAlreadyExistsException e) {
             // ErrorItemMessage: Redefinition of method <MethodName>
             this.numberErrors += 1;
+            try {
+                MethodSymbolTableItem sameMethodSymbolTableItem = (MethodSymbolTableItem) this.top.getItem(methodSymbolTableItem.getKey(), true);
+                sameMethodSymbolTableItem.addLine(methodDeclaration.getLine());
+            } catch (ItemNotFoundException itemNotFoundException) {
+
+            }
+            methodSymbolTableItem.addLine(methodDeclaration.getLine());
+            //
+            this.errors.add("Line:"+methodDeclaration.getLine()+
+                    ":Redefinition of method "+methodSymbolTableItem.getName());
+            //
             {System.out.println("Line:"+methodDeclaration.getLine()+
                     ":Redefinition of method "+methodSymbolTableItem.getName());}
         }
@@ -180,6 +215,11 @@ public class NameCollector extends Visitor<Void> {
             this.top.getItem("Field_"+methodDeclaration.getMethodName().getName(), true);
             // ErrorItemMessage: Redefinition of method <MethodName>
             this.numberErrors += 1;
+            methodSymbolTableItem.setFieldConflict();
+            //
+            this.errors.add("Line:"+methodDeclaration.getLine()+
+                    ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");
+            //
             {System.out.println("Line:"+methodDeclaration.getLine()+
                     ":Name of method "+methodSymbolTableItem.getName()+" conflicts with a field's name");}
         } catch (ItemNotFoundException er) {
@@ -217,13 +257,17 @@ public class NameCollector extends Visitor<Void> {
         // Putting item into symbol table
         try {
             this.top.put(fieldSymbolTableItem);
+            fieldDeclaration.getVarDeclaration().accept(this);
         } catch (ItemAlreadyExistsException e) {
             // ErrorItemMessage: Redefinition of field <FieldName>
             this.numberErrors += 1;
+            //
+            this.errors.add("Line:"+fieldDeclaration.getLine()+
+                    ":Redefinition of field "+fieldSymbolTableItem.getName());
+            //
             {System.out.println("Line:"+fieldDeclaration.getLine()+
                     ":Redefinition of field "+fieldSymbolTableItem.getName());}
         }
-        fieldDeclaration.getVarDeclaration().accept(this);
         return null;
     }
 
@@ -234,13 +278,17 @@ public class NameCollector extends Visitor<Void> {
         // Putting item into symbol table
         try {
             this.top.put(localVariableSymbolTableItem);
+            varDeclaration.getVarName().accept(this);
         } catch (ItemAlreadyExistsException e) {
             // ErrorItemMessage: Redefinition of local variable <VariableName>
             this.numberErrors += 1;
+            //
+            this.errors.add("Line:"+varDeclaration.getLine()+
+                    ":Redefinition of local variable "+localVariableSymbolTableItem.getName());
+            //
             {System.out.println("Line:"+varDeclaration.getLine()+
                     ":Redefinition of local variable "+localVariableSymbolTableItem.getName());}
         }
-        varDeclaration.getVarName().accept(this);
         return null;
     }
 

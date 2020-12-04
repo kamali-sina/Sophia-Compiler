@@ -7,6 +7,7 @@ import main.ast.types.Type;
 public class FieldSymbolTableItem extends SymbolTableItem {
     public static String START_KEY = "Field_";
     protected Type type;
+    private boolean flag = false;
 
     public FieldSymbolTableItem(FieldDeclaration fieldDeclaration) {
         this.name = fieldDeclaration.getVarDeclaration().getVarName().getName();
@@ -24,5 +25,9 @@ public class FieldSymbolTableItem extends SymbolTableItem {
     public void setType(Type type) {
         this.type = type;
     }
+
+    public void setFlag() { this.flag = true; }
+
+    public boolean getFlag() { return this.flag; }
 
 }

@@ -14,6 +14,8 @@ public class MethodSymbolTableItem extends SymbolTableItem {
     private Type returnType;
     private ArrayList<Type> argTypes = new ArrayList<>();
     private SymbolTable methodSymbolTable;
+    private boolean fieldConflict = false;
+    private ArrayList<Integer> lines = new ArrayList<>();
 
     public MethodSymbolTableItem(MethodDeclaration methodDeclaration) {
         this.methodDeclaration = methodDeclaration;
@@ -55,6 +57,14 @@ public class MethodSymbolTableItem extends SymbolTableItem {
     public void setMethodSymbolTable(SymbolTable methodSymbolTable) {
         this.methodSymbolTable = methodSymbolTable;
     }
+
+    public boolean getFieldConflict() { return this.fieldConflict; }
+
+    public void setFieldConflict() { this.fieldConflict = true; }
+
+    public void addLine(int line) { this.lines.add(line); }
+
+    public ArrayList<Integer> getLines() { return this.lines; }
 
     @Override
     public String getKey() {

@@ -18,10 +18,7 @@ public class SophiaCompiler {
         NameCollector nameCollector = new NameCollector();
         nameCollector.visit(program);
         InheritanceHandler inheritanceHandler = new InheritanceHandler();
-        inheritanceHandler.setStack(nameCollector.getStack());
-        inheritanceHandler.setTop(nameCollector.getTop());
-        inheritanceHandler.setRoot(nameCollector.getRoot());
-        inheritanceHandler.setNumberErrors(nameCollector.getNumberErrors());
+        inheritanceHandler.setInfo(nameCollector);
         inheritanceHandler.visit(program);
         if (inheritanceHandler.getNumberErrors() == 0) {
             ASTTreePrinter astTreePrinter = new ASTTreePrinter();
