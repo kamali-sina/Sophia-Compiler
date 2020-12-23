@@ -1,0 +1,60 @@
+class A extends Main {
+    def A(w:bool) {
+
+    }
+}
+
+class B {
+    def R() {
+
+    }
+}
+
+class Main extends B {
+    def Main(a:int) {
+        l1:list(0 # string);
+        l2:list(b:bool, c:string, c:int);
+        l3:list(3 # int);
+        l4:list(int, string, j:bool);
+        d: D;
+        e:string;
+        f: A;
+
+        a();
+        a = l4[1+1];
+        a = this.foo();
+        if(e) {
+            print(l3);
+        }
+        f = new A(1);
+        break;
+        foreach(a in e) {
+
+        }
+        foreach(a in l4) {
+
+        }
+        foreach(e in l3) {
+
+        }
+        a = 2++;
+        2 = a;
+        a = e[1];
+        a = l3[e];
+        a = l4.m;
+        a = e.f;
+        a = this.g;
+        this.foo(2);
+        a = a + e;
+        a = g;
+    }
+
+    def void foo() {
+
+    }
+
+    def int bar() {
+        return "hello";
+    }
+
+}

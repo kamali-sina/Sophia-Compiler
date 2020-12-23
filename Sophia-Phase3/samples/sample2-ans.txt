@@ -1,0 +1,26 @@
+Line:1:Main class is not found
+Line:1:Class L is not declared
+Line:3:Cannot have empty list
+Line:5:Constructor name does not match with class name
+Line:5:List elements cannot have the same id
+Line:10:Variable a is not declared
+Line:10:Object or list member access on an expression that is neither a list nor an object
+Line:10:Variable a is not declared
+Line:10:Unsupported operand type for operator mult
+Line:12:Left side of assignment is not a valid lvalue
+Line:12:Object or list member access on an expression that is neither a list nor an object
+Line:13:Lvalue required as postinc operand
+Line:13:Unsupported operand type for operator postinc
+Line:15:Statements are unreachable
+Line:16:Left side of assignment is not a valid lvalue
+Line:16:Cannot use return value of a method having void return type
+Line:16:Args in method call do not match with definition
+Line:16:Unsupported operand type for operator sub
+Line:17:Condition must be bool
+Line:17:Left side of assignment is not a valid lvalue
+Line:17:Unsupported operand type for operator not
+Line:24:Statements are unreachable
+Line:26:Class L is not declared
+Line:29:Unsupported operand type for operator assign
+Line:30:Object or list member access on an expression that is neither a list nor an object
+Line:34:Method foo needs return statement

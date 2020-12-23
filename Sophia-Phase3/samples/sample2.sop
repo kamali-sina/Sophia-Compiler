@@ -1,0 +1,45 @@
+class A extends L {
+    a:int;
+    b:func<list(0 # int), bool->void>;
+
+    def A2(m:list(int, list(a:int, a:bool)), r:string) {
+        t: int;
+        b: bool;
+        f: func<void->string>;
+
+        a = this.a.b + a - r * m[1].a;
+        print(m + this.a);
+        this.foo.a = 2;
+        t = (this.foo())++;
+        return;
+        print("Unreachable statements 1");
+        this.bar() = t - this;
+        for(t = 0 = 1; t % 2; t = !(t--)) {
+            if(b && !b) {
+                break;
+            }
+            else {
+                continue;
+            }
+            print("Unreachable statement 2");
+        }
+        t = new L();
+        f = this.foo;
+        if(f != null) {
+            t = f();
+            t = f.b;
+        }
+    }
+
+    def string foo() {
+
+    }
+
+    def void bar(a:int) {
+
+    }
+}
+
+class B {
+
+}
