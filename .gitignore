@@ -14,10 +14,6 @@ gen
 
 #antlr Files
 
-.antlr
-*.java
-*.interp
-*.tokens
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
