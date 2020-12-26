@@ -45,8 +45,11 @@ public class SophiaCompiler {
 //        elementsTypes2.add(new ListNameType(new IntType()));
 //        ListType lis2 = new ListType(elementsTypes2);
 //        lis1 = new IntType();
+
+//        ListNameType type = new ListNameType(new IntType());
+//        ListNameType type2 = new ListNameType(new IntType());
 //
-//        if (lis1.getClass().equals(lis2.getClass())){
+//        if (type.getType().getClass().equals(type2.getType().getClass())){
 //            System.out.println("fuck yea?");
 //        }else{
 //            System.out.println("wut");
