@@ -195,7 +195,9 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         if (instanceType instanceof ClassType){
             this.checkingMemberAccess = true;
             this.classCheckingMemberFor = (ClassType) instanceType;
-            return objectOrListMemberAccess.getMemberName().accept(this);
+            Type type = objectOrListMemberAccess.getMemberName().accept(this);
+            this.checkingMemberAccess = false;
+            return type;
         }else{
             ListType list = (ListType)instanceType;
             for (ListNameType listNameType : list.getElementsTypes()){
