@@ -281,7 +281,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             listAccessByIndex.addError(new ListIndexNotInt(listAccessByIndex.getLine()));
         return new NoType();
     }
-// [1,2,3,4,5][a] ['a',213123,true][3]
+    // [1,2,3,4,5][a] ['a',213123,true][3]
     @Override
     public Type visit(MethodCall methodCall) {
         Type insType = methodCall.getInstance().accept(this);
@@ -374,7 +374,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         return new StringType();
     }
 
-    private Boolean isSecondSubtypeOfFirst(Type first, Type second){
+    public Boolean isSecondSubtypeOfFirst(Type first, Type second){
         if (first instanceof NoType || second instanceof NoType){
             return true;
         }
