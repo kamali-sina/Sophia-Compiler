@@ -1,0 +1,112 @@
+class Person {
+  name: string;
+  age: int;
+  def Person(name: string, age: int) {
+    this.name = name;
+    this.age = age;
+  }
+  def void showName() {
+    print(this.name);
+    print("\n");
+  }
+  def void showParentsName() {
+    p1: Person;
+    p1 = this.mother;
+    p2 = this.father;
+    print(p1.name);
+    print(p2.name);
+    p1.showName();
+    p2.showName();
+    p1.showName()[0] = "S" + this.showName()-- + p2.showName()[1]++;
+    a.b = this.Person(true && 1, 2++);
+    print(this.showName());
+    print(p1[0]);
+    print(p2[1]);
+  }
+}
+
+class Student extends Person {
+  sid: string;
+  courses: list(10 # Course);
+  F99courses: list(Course, OnlineCourse, LabCourse);
+  F98courses: list(c: Course, c:LabCourse);
+  def Student(name: String, age: int, sid: string) {
+    this.name = name;
+    this.age = age;
+    sid = this.sid;
+  }
+  def void updateSid(sid: string) {
+    this.sid = sid;
+  }
+  def int getTotalCredits() {
+  	i: int;
+    sum: int;
+    current: Course;
+    ins: string;
+    for (i = 0; 2 = i; i = i + 1) {
+      current = this.courses[i];
+      sum = sum + current.credits;
+      print(this.F99courses[i].credits);
+    }
+    foreach (current in this.F99courses) {
+      sum = sum + current.credits;
+      ins = current.getInstructor();
+      print(current.numQuiz);
+      print(current.getInstructor("main").name);
+    }
+    foreach (current in this.F98courses) {
+      print(current.name);
+    }
+    print(this.F98courses.c1);
+    return sum;
+  }
+  def Course getCourseByIndex(idx: string) {
+    return courses[idx];
+  }
+}
+
+class Course {
+  cid: string;
+  name: string;
+  instructor: Person;
+  credits: int;
+  def Course(cid: string, name: string) {
+    this.cid = cid;
+    this.name = name;
+  }
+  def Person getInstructor() {
+    if (this.instructor == null) {
+      this.instructor = new Person();
+      return this.instructor;
+    }
+    else if ((this.hasInstructor && (this.credits > "1")) == true)
+      return this.instructor.name;
+    return this.name.inst;
+  }
+}
+
+class OnlineCourse extends Course {
+  videoLength: int;
+  numQuiz: int;
+}
+
+class LabCourse extends OnlineCourse {
+  def LabCourse(cid: Course, name: string) {
+     this.cid = cid;
+     this.name = name;
+     this.Course(cid, name);
+  }
+}
+
+class Main {
+  def Main(arg: Arg) {
+    inst: Person;
+    stu: Student;
+    course: Course;
+    inst = new Person("Sophia", 42);
+    inst.showName();
+    stu = new Student("Hannah", 20);
+    stu.showName();
+    course = new Course("810157401", "PLC", inst);
+  }
+}

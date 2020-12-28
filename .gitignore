@@ -13,7 +13,8 @@ gen
 .idea
 
 #antlr Files
-
+.antlr
+.directory
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/

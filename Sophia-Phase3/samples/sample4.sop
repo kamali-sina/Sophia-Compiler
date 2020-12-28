@@ -1,0 +1,159 @@
+class A extends Main {
+    a:list(a:int, a:string);
+    a2:list(int,string);
+
+    def A() {
+        print("Constructor");
+    }
+
+    def void foo() {
+        r:int;
+        a:A;
+        b:B;
+        c:UndefinedClass;
+        d:list(int, string);
+        e:list(0#int);
+        f:list(0#UndefinedClass);
+        g:list(list(0#int), list(0#string));
+        h:func<int->list(0#int)>;
+        i:func<UndefinedClass, func<list(0#int)->void> -> void>;
+        j:func<A -> B>;
+        k:func<B -> A>;
+        l:func<A -> C>;
+        m:func<C -> B>;
+        b = new B(1);
+        r = 2 + a;
+        r = 2 + c;
+        r = 2 + this.a;
+        b.c.first = 2;
+        b.c().first = 2;
+        b.getC().first = 2;
+        r = b.getC()[0];
+        r = b.getC()[1];
+        b.getC()[0] = r;
+        b.c[0] = r;
+        2 + 3 = 5;
+        b.getC(1,2+"hi") = 1;
+        null = null;
+        c = null;
+        null = c;
+        r = null + c;
+        r = null;
+        !r = 2;
+        -r = 1;
+        d = 1;
+        d[0] = 1;
+        d[1] = null;
+        d[1] = "hi";
+        d[1 + 0] = "hello";
+        d[c.getOne()] = "hello";
+        d[c.getOne(1)].r = false;
+        d[c.getOne(1)](1,2)[0] = false;
+        this.a = d;
+        d = this.a;
+        a2 = d;
+        this.a2 = d;
+        d = [1,2];
+        d = [1+true, "hi"];
+        this.a2 = d + d;
+        d = [];
+        e = [];
+        j = k;
+        k = j;
+        j = j;
+        l = k;
+        k = l;
+        m = k;
+        k = m;
+        this.A();
+        this.A(1);
+        a = new A();
+        a = new A(1);
+    }
+}
+
+class B extends UndefinedClass {
+    c:C;
+
+    def C getC() {
+        return this.c;
+    }
+
+    def int getOne() {
+        return 1;
+    }
+
+    def list(a:int, a:list(a:int, a:list(0#int))) bar() {
+        return null;
+    }
+}
+
+class C {
+    first: int;
+    second: list(int, string);
+}
+
+class D {
+    def void foo(a:UndefinedClass) {
+        i:int;
+        s:string;
+        o:list(a:int, string);
+        b:B;
+        a = new UndefinedClass();
+        if(i == 1 + "hello" + a - 1 * r % this.foo()) {
+            for(i = 0; i + 1; i = i + 1) {
+                if(2) {
+
+                }
+            }
+        }
+        for(i = 0; i < 1; i = 1) {
+            for(i = 0; i < 1; i = 1) {
+                break;
+            }
+            continue;
+        }
+        break;
+        2();
+        i();
+        this.foo();
+        this.foo[1]();
+        o[1] = 1;
+        o[2 + 3] = "hello";
+        o[this.foo()] = 2;
+        o[b.getOne()] = 1;
+        foreach(i in [1,2]) {
+        }
+        foreach(i in o) {
+        }
+        foreach(s in o) {
+        }
+        foreach(b in [1,2]){
+        }
+        i = i++;
+        i = 4++;
+        i = (b.getOne(4++, i++))++;
+        i[1] = 1;
+        i["hello"] = 2;
+        i[i++] = --i;
+        if(null == null) {
+        }
+        if(null == c) {
+        }
+        if(o == o) {
+        }
+        o.a = 1;
+        o.b = 1;
+        i.a = 1;
+        b.getOne.a = 1;
+        b.getOne = b.getOne;
+        b.r = 1;
+        b.getOne(1) = 2;
+        2 = b.getOne(1);
+        s = b.getOne(1);
+    }
+
+    def EE() {
+
+    }
+}

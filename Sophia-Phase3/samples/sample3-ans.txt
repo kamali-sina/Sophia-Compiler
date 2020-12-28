@@ -1,0 +1,40 @@
+Line:14:There is no member named mother in class Person
+Line:15:Variable p2 is not declared
+Line:15:There is no member named father in class Person
+Line:17:Variable p2 is not declared
+Line:19:Variable p2 is not declared
+Line:20:Left side of assignment must be a valid lvalue
+Line:20:Cannot use return value of a method having void return type
+Line:20:Unsupported operand type for operator add
+Line:20:Lvalue required as postdec operand
+Line:20:Cannot use return value of a method having void return type
+Line:20:Lvalue required as postinc operand
+Line:20:Variable p2 is not declared
+Line:21:Variable a is not declared
+Line:21:Cannot use return value of a method having void return type
+Line:21:Unsupported operand type for operator and
+Line:21:Lvalue required as postinc operand
+Line:22:Cannot use return value of a method having void return type
+Line:23:Access by index on a non-list
+Line:24:Variable p2 is not declared
+Line:32:List elements cannot have the same id
+Line:33:Class String is not declared
+Line:46:Left side of assignment must be a valid lvalue
+Line:49:Expression cannot be used as index of multi-type list
+Line:51:Foreach list elements do not have the same type
+Line:53:Unsupported operand type for operator assign
+Line:54:There is no member named numQuiz in class Course
+Line:55:Args in method call do not match with definition
+Line:64:List index is not an integer
+Line:64:Variable courses is not declared
+Line:79:Constructor args do not match with definition of class Person
+Line:82:There is no member named hasInstructor in class Course
+Line:82:Unsupported operand type for operator gt
+Line:83:Return value does not match with method return type
+Line:84:Object or list member access on an expression that is neither a list nor an object
+Line:95:Unsupported operand type for operator assign
+Line:97:Args in method call do not match with definition
+Line:102:Main constructor cannot have arguments
+Line:102:Class Arg is not declared
+Line:108:Constructor args do not match with definition of class Student
+Line:110:Constructor args do not match with definition of class Course

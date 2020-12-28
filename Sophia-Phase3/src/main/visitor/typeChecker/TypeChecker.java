@@ -163,13 +163,7 @@ public class TypeChecker extends Visitor<Void> {
         for(Statement statement : methodDeclaration.getBody()) {
             statement.accept(this);
         }
-        if(returnType instanceof NoType) {  // Return type is void
-            if(methodDeclaration.getDoesReturn()) { // There is a return statement
-                CantUseValueOfVoidMethod cantUseValueOfVoidMethod =
-                        new CantUseValueOfVoidMethod(methodDeclaration.getLine());  // Error 13
-                methodDeclaration.addError(cantUseValueOfVoidMethod);
-            }
-        } else {    // Return type is not void
+        if(!(returnType instanceof NoType)) {  // Return type is not void
             if(!methodDeclaration.getDoesReturn()) {    // There isn't a return statement
                 MissingReturnStatement missingReturnStatement = new MissingReturnStatement(methodDeclaration);  // Error 31
                 methodDeclaration.addError(missingReturnStatement);
@@ -195,6 +189,7 @@ public class TypeChecker extends Visitor<Void> {
                Set<String> listElements = new HashSet<>();
                for(ListNameType listNameType : list.getElementsTypes()) {
                    String listElementName = listNameType.getName().getName();
+                   if (listElementName.equals("")) continue;
                    if(!listElements.contains(listElementName)) {
                        listElements.add(listElementName);
                    } else {
@@ -259,7 +254,9 @@ public class TypeChecker extends Visitor<Void> {
 
     @Override
     public Void visit(MethodCallStmt methodCallStmt) {
+        this.expressionTypeChecker.methodCallStatement = true;
         methodCallStmt.getMethodCall().accept(this.expressionTypeChecker);
+        this.expressionTypeChecker.methodCallStatement = false;
         return null;
     }
 
@@ -314,9 +311,11 @@ public class TypeChecker extends Visitor<Void> {
         Type variableType = foreachStmt.getVariable().accept(this.expressionTypeChecker);
         Type listType = foreachStmt.getList().accept(this.expressionTypeChecker);
         if(!(listType instanceof ListType)) {
-            ForeachCantIterateNoneList foreachCantIterateNoneList =
-                    new ForeachCantIterateNoneList(foreachStmt.getLine()); // Error 19
-            foreachStmt.addError(foreachCantIterateNoneList);
+            if (!(listType instanceof NoType)) {
+                ForeachCantIterateNoneList foreachCantIterateNoneList =
+                        new ForeachCantIterateNoneList(foreachStmt.getLine()); // Error 19
+                foreachStmt.addError(foreachCantIterateNoneList);
+            }
         } else {
             if(!(this.expressionTypeChecker.isListSingleType((ListType) listType))) {
                 ForeachListElementsNotSameType foreachListElementsNotSameType =

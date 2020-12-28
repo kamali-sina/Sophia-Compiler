@@ -14,6 +14,7 @@ import main.ast.nodes.expression.values.primitive.BoolValue;
 import main.ast.nodes.expression.values.primitive.IntValue;
 import main.ast.nodes.expression.values.primitive.StringValue;
 import main.ast.types.NoType;
+import main.visitor.typeChecker.LValueTypeChecker;
 import main.ast.types.NullType;
 import main.ast.types.Type;
 import main.ast.types.list.ListNameType;
@@ -59,6 +60,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     private MethodDeclaration currentMethod;
     private Boolean checkingMemberAccess = false;
     private ClassType classCheckingMemberFor;
+    public Boolean methodCallStatement = false;
 
     public void setCurrentClass(ClassDeclaration classDec){ this.currentClass = classDec;}
 
@@ -78,7 +80,6 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         Type type2nd = binaryExpression.getSecondOperand().accept(this);
         BinaryOperator op = binaryExpression.getBinaryOperator();
         if (op == BinaryOperator.eq || op == BinaryOperator.neq){
-            //TODO:both must be same shit and null for funcPtr, what if one is no type?
             if (type1st instanceof ListType || type2nd instanceof ListType){
                 binaryExpression.addError(new UnsupportedOperandType(binaryExpression.getLine(), op.name()));
                 return new NoType();
@@ -301,6 +302,9 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                     return new NoType();
                 }
             }
+            if (castedInsType.getReturnType() instanceof NoType && !this.methodCallStatement){
+                methodCall.addError(new CantUseValueOfVoidMethod(methodCall.getLine())); //error 13
+            }
             return castedInsType.getReturnType();
         }else if(insType instanceof NoType){
             return new NoType();
@@ -375,8 +379,12 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     }
 
     public Boolean isSecondSubtypeOfFirst(Type first, Type second){
-        if (first instanceof NoType || second instanceof NoType){
+        if (second instanceof NoType){
             return true;
+        }
+        //return type is void
+        if (first instanceof NoType){
+            return second instanceof NullType;
         }
         if (first instanceof FptrType || first instanceof ClassType){
             if (second instanceof NullType) return true;
@@ -490,8 +498,9 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     }
 
     public Boolean islValue(Expression expression){
-        return expression instanceof Identifier || expression instanceof ListAccessByIndex
-                || expression instanceof ObjectOrListMemberAccess;
+        LValueTypeChecker visit = new LValueTypeChecker();
+        expression.accept(visit);
+        return visit.getLValue();
     }
 
     private Boolean canTypesBeCompared(Type first, Type second){
@@ -513,7 +522,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 if (!this.isSecondSubtypeOfFirst(castedFirst.getReturnType(),castedSecond.getReturnType())){
                     return false;
                 }
-                for (int i = 0 ; i < castedFirst.getArgumentsTypes().size() ; i++){
+                for (int i = 0 ; i < castedFirst.getArgumentsTypes().size() ; i++) {
                     Type arg1 = castedFirst.getArgumentsTypes().get(i);
                     Type arg2 = castedSecond.getArgumentsTypes().get(i);
                     if (!this.isSecondSubtypeOfFirst(arg1,arg2)){
@@ -522,7 +531,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 }
                 return true;
             }
-        }else if (first instanceof ListType){
+        }else if (first instanceof ListType) {
             return false;
         }else{
             //OtherTypes

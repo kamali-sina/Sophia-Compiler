@@ -18,6 +18,8 @@ public class MethodDeclaration extends Declaration {
     protected ArrayList<Statement> body = new ArrayList<>();
     //don't need this until code generation
     protected boolean doesReturn = false;
+    protected boolean doesContinue = false;
+    protected boolean doesBreak = false;
 
     //returnType NullType on when it is Void
     public MethodDeclaration(Identifier methodName, Type returnType) {
@@ -83,6 +85,22 @@ public class MethodDeclaration extends Declaration {
 
     public void setDoesReturn(boolean doesReturn) {
         this.doesReturn = doesReturn;
+    }
+
+    public boolean getDoesBreak() {
+        return doesBreak;
+    }
+
+    public void setDoesBreak(boolean doesBreak) {
+        this.doesBreak = doesBreak;
+    }
+
+    public boolean getDoesContinue() {
+        return doesContinue;
+    }
+
+    public void setDoesContinue(boolean doesContinue) {
+        this.doesContinue = doesContinue;
     }
 
     @Override

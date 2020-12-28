@@ -1,0 +1,103 @@
+Line:1:Main class is not found
+Line:1:Class Main is not declared
+Line:1:Classes cannot extend from Main class
+Line:2:List elements cannot have the same id
+Line:13:Class UndefinedClass is not declared
+Line:15:Cannot have empty list
+Line:16:Cannot have empty list
+Line:17:Cannot have empty list
+Line:17:Cannot have empty list
+Line:18:Cannot have empty list
+Line:19:Class UndefinedClass is not declared
+Line:19:Cannot have empty list
+Line:24:Constructor args do not match with definition of class B
+Line:25:Unsupported operand type for operator add
+Line:29:Left side of assignment must be a valid lvalue
+Line:29:Calling a non-callable
+Line:30:Left side of assignment must be a valid lvalue
+Line:31:Access by index on a non-list
+Line:32:Access by index on a non-list
+Line:33:Left side of assignment must be a valid lvalue
+Line:33:Access by index on a non-list
+Line:34:Access by index on a non-list
+Line:35:Left side of assignment must be a valid lvalue
+Line:36:Left side of assignment must be a valid lvalue
+Line:36:Args in method call do not match with definition
+Line:36:Unsupported operand type for operator add
+Line:37:Left side of assignment must be a valid lvalue
+Line:39:Left side of assignment must be a valid lvalue
+Line:40:Unsupported operand type for operator add
+Line:41:Unsupported operand type for operator assign
+Line:42:Left side of assignment must be a valid lvalue
+Line:42:Unsupported operand type for operator not
+Line:43:Left side of assignment must be a valid lvalue
+Line:44:Unsupported operand type for operator assign
+Line:46:Unsupported operand type for operator assign
+Line:48:Expression cannot be used as index of multi-type list
+Line:49:Expression cannot be used as index of multi-type list
+Line:50:Expression cannot be used as index of multi-type list
+Line:51:Left side of assignment must be a valid lvalue
+Line:51:Expression cannot be used as index of multi-type list
+Line:54:Variable a2 is not declared
+Line:56:Unsupported operand type for operator assign
+Line:57:Unsupported operand type for operator add
+Line:58:Unsupported operand type for operator add
+Line:59:Unsupported operand type for operator assign
+Line:61:Unsupported operand type for operator assign
+Line:62:Unsupported operand type for operator assign
+Line:64:Unsupported operand type for operator assign
+Line:65:Unsupported operand type for operator assign
+Line:66:Unsupported operand type for operator assign
+Line:67:Unsupported operand type for operator assign
+Line:69:Args in method call do not match with definition
+Line:71:Constructor args do not match with definition of class A
+Line:75:Class UndefinedClass is not declared
+Line:86:List elements cannot have the same id
+Line:86:List elements cannot have the same id
+Line:86:Cannot have empty list
+Line:87:Return value does not match with method return type
+Line:156:Constructor name does not match with class name
+Line:97:Class UndefinedClass is not declared
+Line:102:Class UndefinedClass is not declared
+Line:103:Unsupported operand type for operator add
+Line:103:Variable r is not declared
+Line:103:Cannot use return value of a method having void return type
+Line:103:Args in method call do not match with definition
+Line:104:Condition must be bool
+Line:105:Condition must be bool
+Line:116:Break statement not within loop
+Line:117:Calling a non-callable
+Line:118:Calling a non-callable
+Line:119:Args in method call do not match with definition
+Line:120:Access by index on a non-list
+Line:121:Unsupported operand type for operator assign
+Line:122:Expression cannot be used as index of multi-type list
+Line:123:Expression cannot be used as index of multi-type list
+Line:123:Cannot use return value of a method having void return type
+Line:123:Args in method call do not match with definition
+Line:124:Expression cannot be used as index of multi-type list
+Line:127:Foreach list elements do not have the same type
+Line:129:Foreach list elements do not have the same type
+Line:129:Foreach variable s and list elements types do not match
+Line:131:Foreach variable b and list elements types do not match
+Line:134:Lvalue required as postinc operand
+Line:135:Lvalue required as postinc operand
+Line:135:Args in method call do not match with definition
+Line:135:Lvalue required as postinc operand
+Line:136:Access by index on a non-list
+Line:137:List index is not an integer
+Line:137:Access by index on a non-list
+Line:138:Access by index on a non-list
+Line:141:Variable c is not declared
+Line:143:Unsupported operand type for operator eq
+Line:146:There is no element named b in the list
+Line:147:Object or list member access on an expression that is neither a list nor an object
+Line:148:Left side of assignment must be a valid lvalue
+Line:148:Object or list member access on an expression that is neither a list nor an object
+Line:149:Left side of assignment must be a valid lvalue
+Line:150:There is no member named r in class B
+Line:151:Left side of assignment must be a valid lvalue
+Line:151:Args in method call do not match with definition
+Line:152:Left side of assignment must be a valid lvalue
+Line:152:Args in method call do not match with definition
+Line:153:Args in method call do not match with definition
