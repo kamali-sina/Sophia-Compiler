@@ -61,6 +61,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     private Boolean checkingMemberAccess = false;
     private ClassType classCheckingMemberFor;
     public Boolean methodCallStatement = false;
+    private Boolean isExpressionLValue = true;
 
     public void setCurrentClass(ClassDeclaration classDec){ this.currentClass = classDec;}
 
@@ -76,6 +77,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(BinaryExpression binaryExpression) {
+        this.isExpressionLValue = false;
         Type type1st = binaryExpression.getFirstOperand().accept(this);
         Type type2nd = binaryExpression.getSecondOperand().accept(this);
         BinaryOperator op = binaryExpression.getBinaryOperator();
@@ -146,6 +148,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(UnaryExpression unaryExpression) {
+        this.isExpressionLValue = false;
         Type operandType = unaryExpression.getOperand().accept(this);
         UnaryOperator op = unaryExpression.getOperator();
         if (op == UnaryOperator.not){
@@ -197,6 +200,9 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             this.checkingMemberAccess = true;
             this.classCheckingMemberFor = (ClassType) instanceType;
             Type type = objectOrListMemberAccess.getMemberName().accept(this);
+            if (type instanceof FptrType){
+                this.isExpressionLValue = false;
+            }
             this.checkingMemberAccess = false;
             return type;
         }else{
@@ -285,6 +291,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     // [1,2,3,4,5][a] ['a',213123,true][3]
     @Override
     public Type visit(MethodCall methodCall) {
+        this.isExpressionLValue = false;
         Type insType = methodCall.getInstance().accept(this);
         ArrayList<Expression> args = methodCall.getArgs();
         if (insType instanceof FptrType){
@@ -316,6 +323,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(NewClassInstance newClassInstance) {
+        this.isExpressionLValue = false;
         ClassType classType = newClassInstance.getClassType();
         try {
             ClassSymbolTableItem classSymbolTableItem = (ClassSymbolTableItem) SymbolTable.root.getItem
@@ -350,6 +358,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(ListValue listValue) {
+        this.isExpressionLValue = false;
         ArrayList<ListNameType> elementsTypes = new ArrayList<>();
         for (Expression exp : listValue.getElements()){
             Type type = exp.accept(this);
@@ -360,21 +369,25 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(NullValue nullValue) {
+        this.isExpressionLValue = false;
         return new NullType();
     }
 
     @Override
     public Type visit(IntValue intValue) {
+        this.isExpressionLValue = false;
         return new IntType();
     }
 
     @Override
     public Type visit(BoolValue boolValue) {
+        this.isExpressionLValue = false;
         return new BoolType();
     }
 
     @Override
     public Type visit(StringValue stringValue) {
+        this.isExpressionLValue = false;
         return new StringType();
     }
 
@@ -498,9 +511,10 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     }
 
     public Boolean islValue(Expression expression){
-        LValueTypeChecker visit = new LValueTypeChecker();
-        expression.accept(visit);
-        return visit.getLValue();
+//        LValueTypeChecker visit = new LValueTypeChecker();
+        this.isExpressionLValue = true;
+        expression.accept(this);
+        return this.isExpressionLValue;
     }
 
     private Boolean canTypesBeCompared(Type first, Type second){

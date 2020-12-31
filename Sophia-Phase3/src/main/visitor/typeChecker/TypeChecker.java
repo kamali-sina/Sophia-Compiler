@@ -211,7 +211,7 @@ public class TypeChecker extends Visitor<Void> {
         Type lValueType = assignmentStmt.getlValue().accept(this.expressionTypeChecker);
         Type rValueType = assignmentStmt.getrValue().accept(this.expressionTypeChecker);
         if(!this.expressionTypeChecker.islValue(assignmentStmt.getlValue())) {
-            LeftSideNotLvalue leftSideNotLvalue = new LeftSideNotLvalue(assignmentStmt.getLine());
+            LeftSideNotLvalue leftSideNotLvalue = new LeftSideNotLvalue(assignmentStmt.getLine()); //Error 6
             assignmentStmt.addError(leftSideNotLvalue);
         }
         if(!this.expressionTypeChecker.isSecondSubtypeOfFirst(lValueType, rValueType)) {
