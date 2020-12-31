@@ -1,6 +1,8 @@
 package main.visitor.typeChecker;
 
+import com.sun.jdi.LocalVariable;
 import main.ast.nodes.declaration.classDec.ClassDeclaration;
+import main.ast.nodes.declaration.classDec.classMembersDec.ConstructorDeclaration;
 import main.ast.nodes.declaration.classDec.classMembersDec.FieldDeclaration;
 import main.ast.nodes.declaration.classDec.classMembersDec.MethodDeclaration;
 import main.ast.nodes.declaration.variableDec.VarDeclaration;
@@ -170,13 +172,15 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                     unaryExpression.getOperator().name()));
             return new NoType();
         }else{
-            if (operandType instanceof IntType){
-                if (this.islValue(unaryExpression.getOperand())){
-                    return operandType;
-                }
+            boolean flag = true;
+            if (!(this.islValue(unaryExpression.getOperand()))){
                 unaryExpression.addError(new IncDecOperandNotLvalue(unaryExpression.getLine(),
                         unaryExpression.getOperator().name()));
-                return new NoType();
+                flag = false;
+            }
+            if (operandType instanceof IntType){
+                if (!flag) return new NoType();
+                return operandType;
             }else if (operandType instanceof NoType){
                 return new NoType();
             }
@@ -241,7 +245,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         }
     }
 
-    public Boolean isListSingleType(ListType listType){
+    public boolean isListSingleType(ListType listType){
         ArrayList<ListNameType> types = listType.getElementsTypes();
         ListNameType last_type = null;
         for (ListNameType type : types){
@@ -259,7 +263,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     public Type visit(ListAccessByIndex listAccessByIndex) {
         Type indexType = listAccessByIndex.getIndex().accept(this);
         Type instanceType = listAccessByIndex.getInstance().accept(this);
-        if (!(indexType instanceof IntType || indexType instanceof NoType))
+        if (!(instanceType instanceof ListType || instanceType instanceof NoType))
             listAccessByIndex.addError(new ListAccessByIndexOnNoneList(listAccessByIndex.getLine()));
         if (indexType instanceof IntType || indexType instanceof NoType){
             if (instanceType instanceof ListType || instanceType instanceof  NoType){
@@ -309,8 +313,9 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                     return new NoType();
                 }
             }
-            if (castedInsType.getReturnType() instanceof NoType && !this.methodCallStatement){
+            if (castedInsType.getReturnType() instanceof NullType && !this.methodCallStatement){
                 methodCall.addError(new CantUseValueOfVoidMethod(methodCall.getLine())); //error 13
+                return new NoType();
             }
             return castedInsType.getReturnType();
         }else if(insType instanceof NoType){
@@ -328,18 +333,25 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         try {
             ClassSymbolTableItem classSymbolTableItem = (ClassSymbolTableItem) SymbolTable.root.getItem
                     (ClassSymbolTableItem.START_KEY + classType.getClassName().getName(), true);
-            ArrayList<FieldDeclaration> classFields = classSymbolTableItem.getClassDeclaration().getFields();
+            ConstructorDeclaration classConstructor = classSymbolTableItem.getClassDeclaration().getConstructor();
             ArrayList<Expression> args = newClassInstance.getArgs();
-            if (args.size() != classFields.size()){
-                newClassInstance.addError(new ConstructorArgsNotMatchDefinition(newClassInstance));
-                return new NoType();
-            }
-            for (int i = 0 ; i < args.size() ; i++){
-                Type argType = args.get(i).accept(this);
-                Type classArgType = classFields.get(i).getVarDeclaration().getType();
-                if (!this.isSecondSubtypeOfFirst(classArgType, argType)){
+            if(classConstructor == null) {
+                if(args.size() != 0) {
+                    newClassInstance.addError(new ConstructorArgsNotMatchDefinition(newClassInstance));
+                }
+            } else{
+                ArrayList<VarDeclaration> constructorArgs = classConstructor.getArgs();
+                if (constructorArgs.size() != args.size()){
                     newClassInstance.addError(new ConstructorArgsNotMatchDefinition(newClassInstance));
                     return new NoType();
+                }
+                for (int i = 0 ; i < args.size() ; i++){
+                    Type argType = args.get(i).accept(this);
+                    Type classArgType = constructorArgs.get(i).getType();
+                    if (!this.isSecondSubtypeOfFirst(classArgType, argType)){
+                        newClassInstance.addError(new ConstructorArgsNotMatchDefinition(newClassInstance));
+                        return new NoType();
+                    }
                 }
             }
         } catch (ItemNotFoundException e) {
@@ -392,11 +404,11 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     }
 
     public Boolean isSecondSubtypeOfFirst(Type first, Type second){
-        if (second instanceof NoType){
+        if (second instanceof NoType || first instanceof NoType){
             return true;
         }
         //return type is void
-        if (first instanceof NoType){
+        if (first instanceof NullType){
             return second instanceof NullType;
         }
         if (first instanceof FptrType || first instanceof ClassType){
@@ -456,8 +468,12 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     private Type doesLocalVarExist(String identifierName){
         //is in method?
-        ArrayList<VarDeclaration> methodArgs = this.getCurrentMethod().getLocalVars();
-        for (VarDeclaration methodArg : methodArgs) {
+        for (VarDeclaration methodArg : this.getCurrentMethod().getLocalVars()) {
+            if (identifierName.equals(methodArg.getVarName().getName())) {
+                return methodArg.getType();
+            }
+        }
+        for (VarDeclaration methodArg : this.getCurrentMethod().getArgs()) {
             if (identifierName.equals(methodArg.getVarName().getName())) {
                 return methodArg.getType();
             }
@@ -468,7 +484,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     private Type doesIdentifierExistInClass(String identifierName, ClassType classType){
         try {
             ClassSymbolTableItem checkClassSymbolTableItem = (ClassSymbolTableItem)
-                    SymbolTable.root.getItem(ClassSymbolTableItem.START_KEY + classType.getClassName(), true);
+                    SymbolTable.root.getItem(ClassSymbolTableItem.START_KEY + classType.getClassName().getName(), true);
             ClassDeclaration classDec = checkClassSymbolTableItem.getClassDeclaration();
             //is in Class?
             ArrayList<FieldDeclaration> classArgs = classDec.getFields();
@@ -550,6 +566,16 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         }else{
             //OtherTypes
             return first.getClass().equals(second.getClass());
+        }
+    }
+
+    public Boolean doesClassExist(ClassType classType) {
+        try {
+            ClassSymbolTableItem classSymbolTableItem = (ClassSymbolTableItem) SymbolTable.root.getItem
+                    (ClassSymbolTableItem.START_KEY + classType.getClassName().getName(), true);
+            return true;
+        } catch (ItemNotFoundException itemNotFoundException) {
+            return false;
         }
     }
 }

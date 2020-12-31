@@ -15,9 +15,11 @@ import main.ast.nodes.statement.loop.ForeachStmt;
 import main.ast.types.NoType;
 import main.ast.types.NullType;
 import main.ast.types.Type;
+import main.ast.types.functionPointer.FptrType;
 import main.ast.types.list.ListNameType;
 import main.ast.types.list.ListType;
 import main.ast.types.single.BoolType;
+import main.ast.types.single.ClassType;
 import main.ast.types.single.IntType;
 import main.ast.types.single.StringType;
 import main.compileErrorException.CompileErrorException;
@@ -38,14 +40,21 @@ public class TypeChecker extends Visitor<Void> {
     private MethodDeclaration currentMethod;
     private boolean loopBlock = false;
     private boolean hasUnreachableStmt = false;
+    private boolean doesVarHaveError = false;
 
     public ClassDeclaration getCurrentClass() { return this.currentClass;}
 
-    public void setCurrentClass(ClassDeclaration classDec) { this.currentClass = classDec;}
+    public void setCurrentClass(ClassDeclaration classDec) {
+        this.currentClass = classDec;
+        this.expressionTypeChecker.setCurrentClass(classDec);
+    }
 
     public MethodDeclaration getCurrentMethod() { return this.currentMethod;}
 
-    public void setCurrentMethod(MethodDeclaration methodDec) { this.currentMethod = methodDec;}
+    public void setCurrentMethod(MethodDeclaration methodDec) {
+        this.currentMethod = methodDec;
+        this.expressionTypeChecker.setCurrentMethod(methodDec);
+    }
 
     public boolean getLoopBlock() { return this.loopBlock; }
 
@@ -55,14 +64,20 @@ public class TypeChecker extends Visitor<Void> {
 
     public void setHasUnreachableStmt(boolean hasUnreachableStmt) { this.hasUnreachableStmt = hasUnreachableStmt; }
 
+    public boolean getDoesVarHaveError() { return this.doesVarHaveError; }
+
+    public void setDoesVarHaveError(boolean doesVarHaveError) { this.doesVarHaveError = doesVarHaveError; }
+
     public TypeChecker(Graph<String> classHierarchy) {
         this.classHierarchy = classHierarchy;
         this.expressionTypeChecker = new ExpressionTypeChecker(classHierarchy);
     }
 
     /*
+    * 2 - ClassNotDeclared
     * 4 - UnsupportedOperandType
     * 5 - ConditionNotBool
+    * 6 - LeftSideNotLvalue
     * 9 - ContinueBreakNotInLoop
     * 10 - UnsupportedTypeForPrint
     * 11 - CannotHaveEmptyList
@@ -100,7 +115,7 @@ public class TypeChecker extends Visitor<Void> {
     @Override
     public Void visit(ClassDeclaration classDeclaration) {
         this.setCurrentClass(classDeclaration);
-        classDeclaration.getClassName().accept(this.expressionTypeChecker);
+        //classDeclaration.getClassName().accept(this.expressionTypeChecker);
         if(classDeclaration.getParentClassName() != null) { // Class has a parent
             if(classDeclaration.getClassName().getName().equals("Main")) {   // Class is Main
                 MainClassCantExtend mainClassCantExtend = new MainClassCantExtend(classDeclaration.getLine()); // Error 26
@@ -111,7 +126,13 @@ public class TypeChecker extends Visitor<Void> {
                         new CannotExtendFromMainClass(classDeclaration.getLine()); // Error 27
                 classDeclaration.addError(cannotExtendFromMainClass);
             }
-            classDeclaration.getParentClassName().accept(this.expressionTypeChecker);
+            ClassType parentClass = new ClassType(classDeclaration.getParentClassName());
+            if(!(this.expressionTypeChecker.doesClassExist(parentClass))) {
+                ClassNotDeclared classNotDeclared =
+                        new ClassNotDeclared(classDeclaration.getLine(),
+                                classDeclaration.getParentClassName().getName());  // Error 2
+                classDeclaration.addError(classNotDeclared);
+            }
         }
         for(FieldDeclaration fieldDeclaration : classDeclaration.getFields()) {
             fieldDeclaration.accept(this);
@@ -152,7 +173,7 @@ public class TypeChecker extends Visitor<Void> {
     @Override
     public Void visit(MethodDeclaration methodDeclaration) {
         this.setCurrentMethod(methodDeclaration);
-        methodDeclaration.getMethodName().accept(this.expressionTypeChecker);
+        //methodDeclaration.getMethodName().accept(this.expressionTypeChecker);
         Type returnType = methodDeclaration.getReturnType();
         for(VarDeclaration varDeclaration : methodDeclaration.getArgs()) {
             varDeclaration.accept(this);
@@ -163,7 +184,7 @@ public class TypeChecker extends Visitor<Void> {
         for(Statement statement : methodDeclaration.getBody()) {
             statement.accept(this);
         }
-        if(!(returnType instanceof NoType)) {  // Return type is not void
+        if(!(returnType instanceof NullType)) {  // Return type is not void
             if(!methodDeclaration.getDoesReturn()) {    // There isn't a return statement
                 MissingReturnStatement missingReturnStatement = new MissingReturnStatement(methodDeclaration);  // Error 31
                 methodDeclaration.addError(missingReturnStatement);
@@ -183,25 +204,10 @@ public class TypeChecker extends Visitor<Void> {
     @Override
     public Void visit(VarDeclaration varDeclaration) {
         Type varType = varDeclaration.getType();
-        if(varType instanceof ListType) {
-           ListType list = (ListType) varType;
-           if(list.getElementsTypes().size() != 0) {
-               Set<String> listElements = new HashSet<>();
-               for(ListNameType listNameType : list.getElementsTypes()) {
-                   String listElementName = listNameType.getName().getName();
-                   if (listElementName.equals("")) continue;
-                   if(!listElements.contains(listElementName)) {
-                       listElements.add(listElementName);
-                   } else {
-                        DuplicateListId duplicateListId = new DuplicateListId(varDeclaration.getLine());    // Error 18
-                        varDeclaration.addError(duplicateListId);
-                        break;
-                   }
-               }
-           } else {
-               CannotHaveEmptyList cannotHaveEmptyList = new CannotHaveEmptyList(varDeclaration.getLine()); // Error 11
-               varDeclaration.addError(cannotHaveEmptyList);
-           }
+        this.setDoesVarHaveError(false);
+        this.isTypeValid(varType, varDeclaration);
+        if(this.getDoesVarHaveError()) {
+            varDeclaration.setType(new NoType());
         }
         return null;
     }
@@ -211,7 +217,7 @@ public class TypeChecker extends Visitor<Void> {
         Type lValueType = assignmentStmt.getlValue().accept(this.expressionTypeChecker);
         Type rValueType = assignmentStmt.getrValue().accept(this.expressionTypeChecker);
         if(!this.expressionTypeChecker.islValue(assignmentStmt.getlValue())) {
-            LeftSideNotLvalue leftSideNotLvalue = new LeftSideNotLvalue(assignmentStmt.getLine()); //Error 6
+            LeftSideNotLvalue leftSideNotLvalue = new LeftSideNotLvalue(assignmentStmt.getLine()); // Error 6
             assignmentStmt.addError(leftSideNotLvalue);
         }
         if(!this.expressionTypeChecker.isSecondSubtypeOfFirst(lValueType, rValueType)) {
@@ -357,5 +363,49 @@ public class TypeChecker extends Visitor<Void> {
         forStmt.getBody().accept(this);
         this.setLoopBlock(false);
         return null;
+    }
+
+    public void isTypeValid(Type varType, VarDeclaration varDeclaration) {
+        if(varType instanceof ClassType) {
+            ClassType varClass = (ClassType) varType;
+            if(!(this.expressionTypeChecker.doesClassExist(varClass))) {
+                ClassNotDeclared classNotDeclared =
+                        new ClassNotDeclared(varDeclaration.getLine(), varClass.getClassName().getName());  // Error 2
+                varDeclaration.addError(classNotDeclared);
+                this.setDoesVarHaveError(true);
+            }
+        }
+        if(varType instanceof ListType) {
+            ListType list = (ListType) varType;
+            if(list.getElementsTypes().size() != 0) {
+                Set<String> listElements = new HashSet<>();
+                for(ListNameType listNameType : list.getElementsTypes()) {
+                    String listElementName = listNameType.getName().getName();
+                    if (listElementName.equals("")) continue;
+                    if(!listElements.contains(listElementName)) {
+                        listElements.add(listElementName);
+                    } else {
+                        DuplicateListId duplicateListId = new DuplicateListId(varDeclaration.getLine());    // Error 18
+                        varDeclaration.addError(duplicateListId);
+                        this.setDoesVarHaveError(true);
+                        break;
+                    }
+                }
+                for(ListNameType listNameType : list.getElementsTypes()) {
+                    this.isTypeValid(listNameType.getType(), varDeclaration);
+                }
+            } else {
+                CannotHaveEmptyList cannotHaveEmptyList = new CannotHaveEmptyList(varDeclaration.getLine()); // Error 11
+                varDeclaration.addError(cannotHaveEmptyList);
+                this.setDoesVarHaveError(true);
+            }
+        }
+        if(varType instanceof FptrType) {
+            FptrType fptrType = (FptrType) varType;
+            this.isTypeValid(fptrType.getReturnType(), varDeclaration);
+            for(Type type : fptrType.getArgumentsTypes()) {
+                this.isTypeValid(type, varDeclaration);
+            }
+        }
     }
 }
