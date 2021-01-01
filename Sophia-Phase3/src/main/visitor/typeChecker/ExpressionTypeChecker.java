@@ -490,11 +490,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 if (((ClassType) first).getClassName().getName().equals(((ClassType) second).getClassName().getName())){
                     return true;
                 }
-                try {
-                    Collection<String> parents =
-                            this.classHierarchy.getParentsOfNode(((ClassType) second).getClassName().getName());
-                    return parents.contains(((ClassType) first).getClassName().getName());
-                } catch (GraphDoesNotContainNodeException e) { return false; }
+                return this.classHierarchy.isSecondNodeAncestorOf(((ClassType) first).getClassName().getName(),
+                        ((ClassType) second).getClassName().getName());
             }else{
                 //functionPtr
                 FptrType castedFirst = (FptrType) first;
