@@ -528,6 +528,27 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         return null;
     }
 
+    private Collection<String> getParentNames(String className) throws GraphDoesNotContainNodeException {
+        Collection<String> parentNames = classHierarchy.getParentsOfNode(className);
+        if (parentNames.size() != 0){
+            boolean flag = true;
+            Collection<String> tempNames = parentNames;
+            while(flag) {
+                for (String name : tempNames) {
+                    Collection<String> newNames = classHierarchy.getParentsOfNode(name);
+                    if (newNames.size() == 0) {
+                        flag = false;
+                    } else {
+                        parentNames.addAll(newNames);
+                        tempNames = newNames;
+                    }
+                    break;
+                }
+            }
+        }
+        return parentNames;
+    }
+
     private Type doesIdentifierExistInClass(String identifierName, ClassType classType){
         try {
             ClassSymbolTableItem checkClassSymbolTableItem = (ClassSymbolTableItem)
@@ -553,9 +574,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             }
             //is in parents?
             try {
-                Collection<String> parentNames
-                        = classHierarchy.getParentsOfNode(classDec.getClassName().getName());
-                // TODO: Add function
+                Collection<String> parentNames = this.getParentNames(classDec.getClassName().getName());
+                // TODO: check function
                 for (String name : parentNames){
                     try {
                         ClassSymbolTableItem classSymbolTableItem = (ClassSymbolTableItem)
