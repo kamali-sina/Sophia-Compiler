@@ -16,7 +16,7 @@ Line:31:Foreach cannot iterate over a non-list
 Line:34:Foreach list elements do not have the same type
 Line:37:Foreach variable e and list elements types do not match
 Line:40:Lvalue required as postinc operand
-Line:41:Left side of assignment is not a valid lvalue
+Line:41:Left side of assignment must be a valid lvalue
 Line:42:Access by index on a non-list
 Line:43:List index is not an integer
 Line:44:There is no element named m in the list

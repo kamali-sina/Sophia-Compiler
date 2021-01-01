@@ -28,10 +28,12 @@ import main.symbolTable.SymbolTable;
 import main.symbolTable.utils.graph.Graph;
 import main.visitor.Visitor;
 import main.ast.nodes.expression.operators.BinaryOperator;
+import main.visitor.typeChecker.Block;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 
 public class TypeChecker extends Visitor<Void> {
     private final Graph<String> classHierarchy;
@@ -73,31 +75,41 @@ public class TypeChecker extends Visitor<Void> {
         this.expressionTypeChecker = new ExpressionTypeChecker(classHierarchy);
     }
 
+    // TODO: Class BLock - Stack of blocks
+    // Type of blocks = method - for and foreach - if and else
+    // stack -> methodBlock|forBlock|IfBlock
+    // If IfBlock and ElseBlock both had break, continue or return -> unreachableStmt
+
+    // TODO: Keep doesReturn - delete rest of stuff
+    // TODO: Class Block -> doseContinue - doesBreak - isLoopBlock - hasUnreachableStatements
+
+    public Stack<Block> blockStack = new Stack<Block>();
+
     /*
-    * 2 - ClassNotDeclared
-    * 4 - UnsupportedOperandType
-    * 5 - ConditionNotBool
-    * 6 - LeftSideNotLvalue
-    * 9 - ContinueBreakNotInLoop
-    * 10 - UnsupportedTypeForPrint
-    * 11 - CannotHaveEmptyList
-    * 13 - CantUseValueOfVoidMethod
-    * 14 - ReturnValueNotMatchMethodReturnType
-    * 17 - ConstructorNotSameNameAsClass
-    * 18 - DuplicateListId
-    * 19 - ForeachCantIterateNoneList *
-    * 20 - ForeachListElementsNotSameType
-    * 21 - ForeachVarNotMatchList
-    * 25 - NoMainClass
-    * 26 - MainClassCantExtend
-    * 27 - CannotExtendFromMainClass
-    * 28 - NoConstructorInMainClass
-    * 29 - MainConstructorCantHaveArgs
-    * 31 - MissingReturnStatement
-    * 32 - UnreachableStatements
-    *
-    * If Error 19 occurs omit Errors 20 and 21
-    * */
+     * 2 - ClassNotDeclared
+     * 4 - UnsupportedOperandType
+     * 5 - ConditionNotBool
+     * 6 - LeftSideNotLvalue
+     * 9 - ContinueBreakNotInLoop
+     * 10 - UnsupportedTypeForPrint
+     * 11 - CannotHaveEmptyList
+     * 13 - CantUseValueOfVoidMethod
+     * 14 - ReturnValueNotMatchMethodReturnType
+     * 17 - ConstructorNotSameNameAsClass
+     * 18 - DuplicateListId
+     * 19 - ForeachCantIterateNoneList *
+     * 20 - ForeachListElementsNotSameType
+     * 21 - ForeachVarNotMatchList
+     * 25 - NoMainClass
+     * 26 - MainClassCantExtend
+     * 27 - CannotExtendFromMainClass
+     * 28 - NoConstructorInMainClass
+     * 29 - MainConstructorCantHaveArgs
+     * 31 - MissingReturnStatement
+     * 32 - UnreachableStatements
+     *
+     * If Error 19 occurs omit Errors 20 and 21
+     * */
 
     @Override
     public Void visit(Program program) {
@@ -181,7 +193,18 @@ public class TypeChecker extends Visitor<Void> {
         for(VarDeclaration varDeclaration : methodDeclaration.getLocalVars()) {
             varDeclaration.accept(this);
         }
+        Block block = new Block();
+        this.blockStack.push(block);
+        boolean flag = true;
         for(Statement statement : methodDeclaration.getBody()) {
+            if((this.currentMethod.getDoesReturn()) && !(block.hasUnreachableStatements) && flag)
+                block.hasUnreachableStatements = true;
+            if(block.hasUnreachableStatements) {
+                UnreachableStatements unreachableStatements = new UnreachableStatements(statement); // Error 32
+                statement.addError(unreachableStatements);
+                block.hasUnreachableStatements = false;
+                flag = false;
+            }
             statement.accept(this);
         }
         if(!(returnType instanceof NullType)) {  // Return type is not void
@@ -230,14 +253,22 @@ public class TypeChecker extends Visitor<Void> {
 
     @Override
     public Void visit(BlockStmt blockStmt) {
+        Block block = this.blockStack.pop();
+        this.blockStack.push(block);
+        boolean flag = true;
         for(Statement statement : blockStmt.getStatements()) {
-            if((this.currentMethod.getDoesReturn() || this.currentMethod.getDoesBreak() ||
-                    this.currentMethod.getDoesContinue()) && this.getHasUnreachableStmt()) {
+            if(block.doesBreak || block.doesContinue) {
+                block.hasUnreachableStatements = true;
+            }
+            if(block.hasUnreachableStatements && flag) {
                 UnreachableStatements unreachableStatements = new UnreachableStatements(statement); // Error 32
                 statement.addError(unreachableStatements);
-                this.setHasUnreachableStmt(true);
+                flag = false;
             }
             statement.accept(this);
+        }
+        if(block.doesBreak || block.doesContinue) {
+            block.hasUnreachableStatements = true;
         }
         return null;
     }
@@ -245,15 +276,32 @@ public class TypeChecker extends Visitor<Void> {
     @Override
     public Void visit(ConditionalStmt conditionalStmt) {
         Type conditionType = conditionalStmt.getCondition().accept(this.expressionTypeChecker);
-        if(!(conditionType instanceof BoolType)) {  // If condition type is not boolean
+        if(!(conditionType instanceof BoolType) && !(conditionType instanceof NoType)) {  // If condition type is not boolean
             ConditionNotBool conditionNotBool = new ConditionNotBool(conditionalStmt.getCondition().getLine()); // Error 5
             conditionalStmt.addError(conditionNotBool);
         }
+        Block parentBlock = this.blockStack.pop();
+        Block ifBlock = new Block();
+        Block elseBlock = new Block();
+        if(parentBlock.isLoopBlock) {
+            ifBlock.isLoopBlock = true;
+            elseBlock.isLoopBlock = true;
+        }
+        this.blockStack.push(parentBlock);
         if(conditionalStmt.getThenBody() != null) {
+            this.blockStack.push(ifBlock);
             conditionalStmt.getThenBody().accept(this);
+            this.blockStack.pop();
         }
         if(conditionalStmt.getElseBody() != null) {
+            this.blockStack.push(elseBlock);
             conditionalStmt.getElseBody().accept(this);
+            this.blockStack.pop();
+        }
+        if(ifBlock.hasUnreachableStatements && elseBlock.hasUnreachableStatements) {
+            Block block = this.blockStack.pop();
+            block.hasUnreachableStatements = true;
+            this.blockStack.push(block);
         }
         return null;
     }
@@ -294,8 +342,11 @@ public class TypeChecker extends Visitor<Void> {
 
     @Override
     public Void visit(BreakStmt breakStmt) {
-        this.currentMethod.setDoesBreak(true);
-        if(!this.getLoopBlock()) {  // Not within a loop block
+        Block block = this.blockStack.pop();
+        block.doesBreak = true;
+        this.blockStack.push(block);
+        //this.currentMethod.setDoesBreak(true);
+        if(!block.isLoopBlock) {  // Not within a loop block
             ContinueBreakNotInLoop continueBreakNotInLoop = new ContinueBreakNotInLoop(breakStmt.getLine(), 0); // Error 9
             breakStmt.addError(continueBreakNotInLoop);
         }
@@ -304,8 +355,11 @@ public class TypeChecker extends Visitor<Void> {
 
     @Override
     public Void visit(ContinueStmt continueStmt) {
-        this.currentMethod.setDoesContinue(true);
-        if(!this.getLoopBlock()) {  // Not within a loop block
+        Block block = this.blockStack.pop();
+        block.doesContinue = true;
+        this.blockStack.push(block);
+        //this.currentMethod.setDoesContinue(true);
+        if(!block.isLoopBlock) {  // Not within a loop block
             ContinueBreakNotInLoop continueBreakNotInLoop = new ContinueBreakNotInLoop(continueStmt.getLine(), 1);  // Error 9
             continueStmt.addError(continueBreakNotInLoop);
         }
@@ -314,6 +368,7 @@ public class TypeChecker extends Visitor<Void> {
 
     @Override
     public Void visit(ForeachStmt foreachStmt) {
+        // TODO: Block
         Type variableType = foreachStmt.getVariable().accept(this.expressionTypeChecker);
         Type listType = foreachStmt.getList().accept(this.expressionTypeChecker);
         if(!(listType instanceof ListType)) {
@@ -336,21 +391,26 @@ public class TypeChecker extends Visitor<Void> {
                 }
             }
         }
-        this.setLoopBlock(true);
-        this.setHasUnreachableStmt(false);
+        Block block = new Block();
+        block.isLoopBlock = true;
+        //this.setLoopBlock(true);
+        //this.setHasUnreachableStmt(false);
+        this.blockStack.push(block);
         foreachStmt.getBody().accept(this);
-        this.setLoopBlock(false);
+        this.blockStack.pop();
+        //this.setLoopBlock(false);
         return null;
     }
 
     @Override
     public Void visit(ForStmt forStmt) {
+        // TODO: Block
         if(forStmt.getInitialize() != null) {
             forStmt.getInitialize().accept(this);
         }
         if(forStmt.getCondition() != null) {    // For has condition statement
             Type conditionType = forStmt.getCondition().accept(this.expressionTypeChecker);
-            if(!(conditionType instanceof BoolType)) {  // Condition statement type is not boolean
+            if(!(conditionType instanceof BoolType) && !(conditionType instanceof NoType)) {  // Condition statement type is not boolean
                 ConditionNotBool conditionNotBool = new ConditionNotBool(forStmt.getCondition().getLine()); // Error 5
                 forStmt.addError(conditionNotBool);
             }
@@ -358,10 +418,14 @@ public class TypeChecker extends Visitor<Void> {
         if(forStmt.getUpdate() != null) {
             forStmt.getUpdate().accept(this);
         }
-        this.setLoopBlock(true);
-        this.setHasUnreachableStmt(false);
+        Block block = new Block();
+        block.isLoopBlock = true;
+        //this.setLoopBlock(true);
+        //this.setHasUnreachableStmt(false);
+        this.blockStack.push(block);
         forStmt.getBody().accept(this);
-        this.setLoopBlock(false);
+        this.blockStack.pop();
+        //this.setLoopBlock(false);
         return null;
     }
 
