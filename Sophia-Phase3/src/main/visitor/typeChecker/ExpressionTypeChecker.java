@@ -65,6 +65,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     public boolean methodCallStatement = false;
     private boolean isExpressionLValue = true;
     public boolean isLValueVisitor = false;
+    private boolean checkingListIndex = false;
 
     public void setCurrentClass(ClassDeclaration classDec){ this.currentClass = classDec;}
 
@@ -80,7 +81,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(BinaryExpression binaryExpression) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         Type type1st = binaryExpression.getFirstOperand().accept(this);
         Type type2nd = binaryExpression.getSecondOperand().accept(this);
         BinaryOperator op = binaryExpression.getBinaryOperator();
@@ -138,15 +140,21 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 binaryExpression.addError(new UnsupportedOperandType(binaryExpression.getLine(), op.name()));
             return new NoType();
         }else if(op == BinaryOperator.assign) {
-            if(!this.islValue(binaryExpression.getFirstOperand())) {
-                LeftSideNotLvalue leftSideNotLvalue = new LeftSideNotLvalue(binaryExpression.getLine()); // Error 6
-                binaryExpression.addError(leftSideNotLvalue);
-                return  new NoType();
+            if (!this.isLValueVisitor) {
+                if (!this.islValue(binaryExpression.getFirstOperand())) {
+                    if (!this.isLValueVisitor) {
+                        LeftSideNotLvalue leftSideNotLvalue = new LeftSideNotLvalue(binaryExpression.getLine()); // Error 6
+                        binaryExpression.addError(leftSideNotLvalue);
+                    }
+                    return new NoType();
+                }
             }
             if(!this.isSecondSubtypeOfFirst(type1st, type2nd)) {
-                UnsupportedOperandType unsupportedOperandType =
-                        new UnsupportedOperandType(binaryExpression.getLine(), BinaryOperator.assign.name()); // Error 4
-                binaryExpression.addError(unsupportedOperandType);
+                if (!this.isLValueVisitor) {
+                    UnsupportedOperandType unsupportedOperandType =
+                            new UnsupportedOperandType(binaryExpression.getLine(), BinaryOperator.assign.name()); // Error 4
+                    binaryExpression.addError(unsupportedOperandType);
+                }
                 return  new NoType();
             }
             return type1st;
@@ -175,7 +183,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(UnaryExpression unaryExpression) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         Type operandType = unaryExpression.getOperand().accept(this);
         UnaryOperator op = unaryExpression.getOperator();
         if (op == UnaryOperator.not){
@@ -200,11 +209,13 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             return new NoType();
         }else{
             boolean flag = true;
-            if (!(this.islValue(unaryExpression.getOperand()))){
-                if(!this.isLValueVisitor)
-                    unaryExpression.addError(new IncDecOperandNotLvalue(unaryExpression.getLine(),
-                            unaryExpression.getOperator().name()));
-                flag = false;
+            if (!this.isLValueVisitor) {
+                if (!(this.islValue(unaryExpression.getOperand()))) {
+                    if (!this.isLValueVisitor)
+                        unaryExpression.addError(new IncDecOperandNotLvalue(unaryExpression.getLine(),
+                                unaryExpression.getOperator().name()));
+                    flag = false;
+                }
             }
             if (operandType instanceof IntType){
                 if (!flag) return new NoType();
@@ -235,7 +246,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             this.classCheckingMemberFor = (ClassType) instanceType;
             Type type = objectOrListMemberAccess.getMemberName().accept(this);
             if (type instanceof FptrType){
-                this.isExpressionLValue = false;
+                if(!this.checkingListIndex)
+                    this.isExpressionLValue = false;
             }
             this.checkingMemberAccess = false;
             return type;
@@ -294,7 +306,9 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(ListAccessByIndex listAccessByIndex) {
+        this.checkingListIndex = true;
         Type indexType = listAccessByIndex.getIndex().accept(this);
+        this.checkingListIndex = false;
         Type instanceType = listAccessByIndex.getInstance().accept(this);
         if (!(instanceType instanceof ListType || instanceType instanceof NoType))
             if(!this.isLValueVisitor)
@@ -331,7 +345,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(MethodCall methodCall) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         Type insType = methodCall.getInstance().accept(this);
         ArrayList<Expression> args = methodCall.getArgs();
         if (insType instanceof FptrType){
@@ -374,7 +389,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(NewClassInstance newClassInstance) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         ClassType classType = newClassInstance.getClassType();
         try {
             ClassSymbolTableItem classSymbolTableItem = (ClassSymbolTableItem) SymbolTable.root.getItem
@@ -420,7 +436,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(ListValue listValue) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         ArrayList<ListNameType> elementsTypes = new ArrayList<>();
         for (Expression exp : listValue.getElements()){
             Type type = exp.accept(this);
@@ -431,25 +448,29 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     @Override
     public Type visit(NullValue nullValue) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         return new NullType();
     }
 
     @Override
     public Type visit(IntValue intValue) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         return new IntType();
     }
 
     @Override
     public Type visit(BoolValue boolValue) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         return new BoolType();
     }
 
     @Override
     public Type visit(StringValue stringValue) {
-        this.isExpressionLValue = false;
+        if(!this.checkingListIndex)
+            this.isExpressionLValue = false;
         return new StringType();
     }
 
@@ -578,7 +599,6 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             //is in parents?
             try {
                 Collection<String> parentNames = this.getParentNames(classDec.getClassName().getName());
-                // TODO: check function
                 for (String name : parentNames){
                     try {
                         ClassSymbolTableItem classSymbolTableItem = (ClassSymbolTableItem)
@@ -608,7 +628,6 @@ public class ExpressionTypeChecker extends Visitor<Type> {
     }
 
     public Boolean islValue(Expression expression){
-        //        LValueTypeChecker visit = new LValueTypeChecker();
         boolean prevStateIsLValueVisitor = this.isLValueVisitor;
         this.isLValueVisitor = true;
         this.isExpressionLValue = true;
