@@ -5,4 +5,5 @@ public class Block {
     public boolean doesContinue = false;
     public boolean isLoopBlock = false; // Foreach and For
     public boolean hasUnreachableStatements = false;
+    public boolean doesReturn = false;
 }

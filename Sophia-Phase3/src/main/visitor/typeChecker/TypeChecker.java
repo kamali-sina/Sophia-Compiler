@@ -198,7 +198,7 @@ public class TypeChecker extends Visitor<Void> {
         this.blockStack.push(block);
         boolean flag = true;
         for(Statement statement : methodDeclaration.getBody()) {
-            if((this.currentMethod.getDoesReturn()) && !(block.hasUnreachableStatements) && flag)
+            if((block.doesReturn) && !(block.hasUnreachableStatements) && flag)
                 block.hasUnreachableStatements = true;
             if(block.hasUnreachableStatements) {
                 UnreachableStatements unreachableStatements = new UnreachableStatements(statement); // Error 32
@@ -305,6 +305,11 @@ public class TypeChecker extends Visitor<Void> {
             block.hasUnreachableStatements = true;
             this.blockStack.push(block);
         }
+        if(ifBlock.doesReturn && elseBlock.doesReturn) {
+            Block block = this.blockStack.pop();
+            block.doesReturn = true;
+            this.blockStack.push(block);
+        }
         return null;
     }
 
@@ -332,6 +337,9 @@ public class TypeChecker extends Visitor<Void> {
 
     @Override
     public Void visit(ReturnStmt returnStmt) {
+        Block block = this.blockStack.pop();
+        this.blockStack.push(block);
+        block.doesReturn = true;
         Type returnType = returnStmt.getReturnedExpr().accept(this.expressionTypeChecker);
         this.getCurrentMethod().setDoesReturn(true);
         if(!this.expressionTypeChecker.isSecondSubtypeOfFirst(this.getCurrentMethod().getReturnType(), returnType)) {
