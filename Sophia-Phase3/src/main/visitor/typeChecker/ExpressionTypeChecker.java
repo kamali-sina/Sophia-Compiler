@@ -186,7 +186,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             }
             if(!this.isLValueVisitor)
                 unaryExpression.addError(new UnsupportedOperandType(unaryExpression.getLine(),
-                    unaryExpression.getOperator().name()));
+                        unaryExpression.getOperator().name()));
             return new NoType();
         }else if (op == UnaryOperator.minus){
             if (operandType instanceof IntType){
@@ -196,14 +196,14 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             }
             if(!this.isLValueVisitor)
                 unaryExpression.addError(new UnsupportedOperandType(unaryExpression.getLine(),
-                    unaryExpression.getOperator().name()));
+                        unaryExpression.getOperator().name()));
             return new NoType();
         }else{
             boolean flag = true;
             if (!(this.islValue(unaryExpression.getOperand()))){
                 if(!this.isLValueVisitor)
                     unaryExpression.addError(new IncDecOperandNotLvalue(unaryExpression.getLine(),
-                        unaryExpression.getOperator().name()));
+                            unaryExpression.getOperator().name()));
                 flag = false;
             }
             if (operandType instanceof IntType){
@@ -213,8 +213,8 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 return new NoType();
             }
             if(!this.isLValueVisitor)
-             unaryExpression.addError(new UnsupportedOperandType(unaryExpression.getLine(),
-                    unaryExpression.getOperator().name()));
+                unaryExpression.addError(new UnsupportedOperandType(unaryExpression.getLine(),
+                        unaryExpression.getOperator().name()));
             return new NoType();
         }
     }
@@ -248,7 +248,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             }
             if(!this.isLValueVisitor)
                 objectOrListMemberAccess.addError(new ListMemberNotFound(objectOrListMemberAccess.getLine(),
-                    objectOrListMemberAccess.getMemberName().getName()));
+                        objectOrListMemberAccess.getMemberName().getName()));
             return new NoType();
         }
     }
@@ -261,7 +261,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             if (type == null){
                 if(!this.isLValueVisitor)
                     identifier.addError(new MemberNotAvailableInClass(identifier.getLine(), identifier.getName(),
-                        this.classCheckingMemberFor.getClassName().getName()));
+                            this.classCheckingMemberFor.getClassName().getName()));
                 return new NoType();
             }else{
                 return type;
@@ -301,7 +301,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 listAccessByIndex.addError(new ListAccessByIndexOnNoneList(listAccessByIndex.getLine()));
         if (indexType instanceof IntType || indexType instanceof NoType){
             if (instanceType instanceof ListType || instanceType instanceof  NoType){
-                if (instanceType instanceof NoType || indexType instanceof NoType){
+                if (instanceType instanceof NoType){
                     return new NoType();
                 }
                 ListType castedIns = (ListType) instanceType;
@@ -343,6 +343,10 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 flag = true;
             }
             ArrayList<Type> argTypes = castedInsType.getArgumentsTypes();
+            ArrayList<Type> argsWithType = new ArrayList<>();
+            for (int i = 0 ; i < args.size() ; i++){
+                argsWithType.add(args.get(i).accept(this));
+            }
             //check if count is correct
             if (argTypes.size() != args.size()){
                 if(!this.isLValueVisitor)
@@ -350,14 +354,13 @@ public class ExpressionTypeChecker extends Visitor<Type> {
                 return new NoType();
             }
             for (int i = 0 ; i < argTypes.size() ; i++){
-                Type argType = args.get(i).accept(this);
-                if (!this.isSecondSubtypeOfFirst(argTypes.get(i), argType)){
+                if (!this.isSecondSubtypeOfFirst(argTypes.get(i), argsWithType.get(i))){
                     if(!this.isLValueVisitor)
                         methodCall.addError(new MethodCallNotMatchDefinition(methodCall.getLine()));
                     return new NoType();
                 }
             }
-            if (flag == true)
+            if (flag)
                 return new NoType();
             return castedInsType.getReturnType();
         }else if(insType instanceof NoType){
@@ -403,7 +406,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
         } catch (ItemNotFoundException e) {
             if(!this.isLValueVisitor)
                 newClassInstance.addError(new ClassNotDeclared(newClassInstance.getLine(),
-                    newClassInstance.getClassType().getClassName().getName()));
+                        newClassInstance.getClassType().getClassName().getName()));
             return new NoType();
         }
 
@@ -494,7 +497,7 @@ public class ExpressionTypeChecker extends Visitor<Type> {
             ListType lis2 = (ListType)second;
             if (lis1.getElementsTypes().size() != lis2.getElementsTypes().size()) return false;
             for (int i = 0 ; i < lis1.getElementsTypes().size() ; i++){
-                if (!lis1.getElementsTypes().get(i).getClass().equals(lis2.getElementsTypes().get(i).getClass()))
+                if (!isSecondSubtypeOfFirst(lis1.getElementsTypes().get(i).getType(),lis2.getElementsTypes().get(i).getType()))
                     return false;
             }
         }else{
@@ -606,10 +609,11 @@ public class ExpressionTypeChecker extends Visitor<Type> {
 
     public Boolean islValue(Expression expression){
         //        LValueTypeChecker visit = new LValueTypeChecker();
+        boolean prevStateIsLValueVisitor = this.isLValueVisitor;
         this.isLValueVisitor = true;
         this.isExpressionLValue = true;
         expression.accept(this);
-        this.isLValueVisitor = false;
+        this.isLValueVisitor = prevStateIsLValueVisitor;
         return this.isExpressionLValue;
     }
 

@@ -29,6 +29,7 @@ import main.symbolTable.utils.graph.Graph;
 import main.visitor.Visitor;
 import main.ast.nodes.expression.operators.BinaryOperator;
 import main.visitor.typeChecker.Block;
+import main.ast.nodes.Node;
 
 import java.util.HashSet;
 import java.util.List;
@@ -212,6 +213,7 @@ public class TypeChecker extends Visitor<Void> {
                 MissingReturnStatement missingReturnStatement = new MissingReturnStatement(methodDeclaration);  // Error 31
                 methodDeclaration.addError(missingReturnStatement);
             }
+            this.isTypeValid(returnType, methodDeclaration);
         }
         // IDK
         this.setCurrentMethod(null);
@@ -429,7 +431,7 @@ public class TypeChecker extends Visitor<Void> {
         return null;
     }
 
-    public void isTypeValid(Type varType, VarDeclaration varDeclaration) {
+    public void isTypeValid(Type varType, Node varDeclaration) {
         if(varType instanceof ClassType) {
             ClassType varClass = (ClassType) varType;
             if(!(this.expressionTypeChecker.doesClassExist(varClass))) {
