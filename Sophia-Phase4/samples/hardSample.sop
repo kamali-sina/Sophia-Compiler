@@ -1,0 +1,145 @@
+class A extends B {
+    cObj: C;
+    t: list(C, int);
+    e: int;
+
+    def A(a: int, b: string, c: bool) {
+        d: int;
+        e: list(r: list(2 # string), func<int->void>);
+        f: func<void->int>;
+        g: list(10 # int);
+        h: func<list(A, int)->void>;
+        print(a);
+        print("\n");
+        print(b);
+        print("\n");
+        print(c);
+        print("\n");
+        print(d);
+        print("\n");
+        print(this.b);
+        print("\n");
+        print(this.c);
+        print("\n");
+        e.r[0] = "hi";
+        print(e.r[0]);
+        print("\n");
+        print(e[0][1]);
+        print("\n");
+        print(e[1] == null);
+        print("\n");
+        print(f == null);
+        print("\n");
+        f = this.foo;
+        print(f());
+        print("\n");
+        print(this.foo());
+        print("\n");
+        print(this.cObj != null);
+        print("\n");
+        this.cObj = new C();
+        print(this.cObj.c);
+        print("\n");
+        this.cObj.c = ++this.c * 4;
+        print(this.cObj.c);
+        print("\n");
+        print(this.c);
+        print("\n");
+        if(this.bar()) {
+            print("then");
+            print("\n");
+        }
+        else {
+            print("else");
+            print("\n");
+        }
+        for(d = 0; d < 10; d = d + 1) {
+            if(!(d != 5))
+                break;
+            if(d == 2)
+                continue;
+            print(d);
+            print("\n");
+            g[d] = d * 2;
+        }
+        foreach(d in g) {
+            print(d);
+            print("\n");
+        }
+        print(this.e);
+        print("\n");
+        this.e = 7;
+        this.c = 10;
+        print(this.e);
+        print("\n");
+        h = this.changeT;
+        h([this, 9]);
+        print(this.t[1]);
+        print("\n");
+        print(this.t[0].c);
+        print("\n");
+        print(this.getNewC().c);
+        print("\n");
+        d = (3 * this.e - g[1]) % 4 + this.foo() + this.getNewC().c;
+        print(d);
+        print("\n");
+        this.t[0].c = 44;
+        print(this.t[0].c);
+        print("\n");
+        d = d-- + --d + (3 * ++this.e - --g[1]) % 4 + this.foo() + this.getNewC().c * this.t[0].c-- * --this.t[0].c;
+        print(d);
+        print("\n");
+        print(++d);
+        print("\n");
+        print(++d);
+        print("\n");
+        print(this.e);
+        print("\n");
+        print(g[1]);
+        print("\n");
+        print(this.t[0].c);
+        print("\n");
+        print(10 / 2 + (-1) * 4 % 3);
+        print("\n");
+    }
+
+    def void changeT(newT: list(B, int)) {
+        this.t = newT;
+    }
+}
+
+class B extends C {
+    b: int;
+
+    def bool bar() {
+        return true || false;
+    }
+
+    def C getNewC() {
+        return new B();
+    }
+
+}
+
+class C {
+    c: int;
+
+    def C() {
+        this.c = 5;
+    }
+
+    def int foo() {
+        return 2;
+    }
+
+    def C getC() {
+        return this;
+    }
+}
+
+class Main {
+    def Main() {
+        b: B;
+        b = new A(1, "hello", true);
+    }
+}

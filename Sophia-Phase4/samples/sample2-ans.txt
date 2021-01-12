@@ -1,0 +1,12 @@
+
+--------------------------Compiling--------------------------
+Compilation successful
+
+-------------------Generating Class Files-------------------
+Generated: Fptr.class
+Generated: List.class
+Generated: Main.class
+Generated: WordProcessor.class
+
+---------------------------Output---------------------------
+the total number of names: 100
