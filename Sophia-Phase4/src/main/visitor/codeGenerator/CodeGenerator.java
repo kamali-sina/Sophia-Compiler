@@ -33,10 +33,13 @@ import main.symbolTable.exceptions.ItemNotFoundException;
 import main.symbolTable.items.ClassSymbolTableItem;
 import main.symbolTable.items.FieldSymbolTableItem;
 import main.symbolTable.utils.graph.Graph;
+import main.visitor.IVisitor;
 import main.visitor.Visitor;
 import main.visitor.typeChecker.ExpressionTypeChecker;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CodeGenerator extends Visitor<String> {
     ExpressionTypeChecker expressionTypeChecker;
@@ -45,6 +48,7 @@ public class CodeGenerator extends Visitor<String> {
     private FileWriter currentFile;
     private ClassDeclaration currentClass;
     private MethodDeclaration currentMethod;
+    private int methodTempVariables;
 
     public CodeGenerator(Graph<String> classHierarchy) {
         this.classHierarchy = classHierarchy;
@@ -109,13 +113,46 @@ public class CodeGenerator extends Visitor<String> {
         } catch (IOException e) {}
     }
 
-    private String makeTypeSignature(Type t) {
-        //todo
-        return null;
+    private void addDefaultFieldValueToClass(int fieldIndex, Type fieldType) {
+        if (fieldType instanceof IntType) {
+
+        } else if (fieldType instanceof StringType) {
+
+        } else if (fieldType instanceof  BoolType) {
+
+        } else if ((fieldType instanceof ClassType) || fieldType instanceof FptrType) {
+
+        } else if (fieldType instanceof ListType) {
+
+        }
+    }
+
+    private String makeTypeSignature(Type type) {
+        String typeString = "";
+        if (type instanceof IntType) {
+            typeString = "java/lang/Integer";
+        } else if (type instanceof BoolType) {
+            typeString = "java/lang/Boolean";
+        } else if (type instanceof  StringType) {
+            typeString = "java/lang/String";
+        } else if (type instanceof ListType) {
+            typeString = "List";
+        } else if (type instanceof FptrType) {
+            typeString = "Fptr";
+        } else if (type instanceof ClassType) {
+            typeString = this.currentClass.getClassName().getName();
+        }
+        return "L" + typeString + ";";
     }
 
     private void addDefaultConstructor() {
-        //todo
+        String methodHeader = ".method public <init> ()V";
+        this.addCommand(methodHeader);
+
+        for (int fieldIndex = 0; fieldIndex < this.currentClass.getFields().size(); fieldIndex++) { // Todo: Check initial value of fieldIndex
+            Type fieldType = this.currentClass.getFields().get(fieldIndex).accept(this.expressionTypeChecker);
+            this.addDefaultFieldValueToClass(fieldIndex, fieldType); // Todo: Complete addDefaultFieldValueToClass
+        }
     }
 
     private void addStaticMainMethod() {
@@ -123,25 +160,84 @@ public class CodeGenerator extends Visitor<String> {
     }
 
     private int slotOf(String identifier) {
-        //todo
-        return 0;
+        if (identifier == "") {
+            this.methodTempVariables += 1;
+            return this.currentMethod.getArgs().size() + this.currentMethod.getLocalVars().size() + this.methodTempVariables;
+        } else {
+            if(identifier.equals("this")) { // Todo: Check whether this is correct or not
+                return 0;
+            }
+            int index = 1;
+            for (VarDeclaration varDeclaration : this.currentMethod.getArgs()) {
+                if (identifier.equals(varDeclaration.getVarName().getName())) {
+                    return index;
+                }
+                index += 1;
+            }
+            for (VarDeclaration varDeclaration : this.currentMethod.getLocalVars()) {
+                if ((identifier.equals(varDeclaration.getVarName().getName()))) {
+                    return index;
+                }
+                index += 1;
+            }
+        }
+        return -1;
     }
 
     @Override
     public String visit(Program program) {
-        //todo
+        for (ClassDeclaration classDeclaration : program.getClasses()) {
+            this.currentClass = classDeclaration;
+            this.expressionTypeChecker.setCurrentClass(classDeclaration);
+            classDeclaration.accept(this);
+        }
         return null;
     }
 
     @Override
     public String visit(ClassDeclaration classDeclaration) {
-        //todo
+        this.createFile(classDeclaration.getClassName().getName());
+
+        String header = ".class public " + classDeclaration.getClassName().getName();
+        this.addCommand(header);
+
+        String superHeader;
+        if (classDeclaration.getParentClassName() == null) {
+            superHeader = ".super java/lang/Object";
+        } else {
+            superHeader = ".super " + classDeclaration.getParentClassName().getName();
+        }
+        superHeader += '\n';
+        this.addCommand(superHeader);
+
+        for (FieldDeclaration fieldDeclaration : classDeclaration.getFields()) {
+            fieldDeclaration.accept(this);
+        }
+
+        this.addDefaultConstructor(); // Todo: Complete addDefaultConstructor
+        if (classDeclaration.getConstructor() != null) {
+            this.currentMethod = classDeclaration.getConstructor();
+            this.expressionTypeChecker.setCurrentMethod(classDeclaration.getConstructor());
+            this.methodTempVariables = 0;
+            classDeclaration.getConstructor().accept(this);
+        }
+
+        for (MethodDeclaration methodDeclaration : classDeclaration.getMethods()) {
+            this.currentMethod = methodDeclaration;
+            this.expressionTypeChecker.setCurrentMethod(methodDeclaration);
+            this.methodTempVariables = 0;
+            methodDeclaration.accept(this);
+        }
         return null;
     }
 
     @Override
     public String visit(ConstructorDeclaration constructorDeclaration) {
         //todo add default constructor or static main method if needed
+        if (this.currentClass.getClassName().getName().equals("Main")) {
+            // Todo: Create a static main method if needed
+            // Todo: When and Where should parent constructor be called
+        }
         this.visit((MethodDeclaration) constructorDeclaration);
         return null;
     }
@@ -159,13 +255,19 @@ public class CodeGenerator extends Visitor<String> {
 
     @Override
     public String visit(FieldDeclaration fieldDeclaration) {
-        //todo
+        String fieldHeader = ".field public " + fieldDeclaration.getVarDeclaration().getVarName().getName() +
+                " " + makeTypeSignature(fieldDeclaration.accept(this.expressionTypeChecker));
+        this.addCommand(fieldHeader);
         return null;
     }
 
     @Override
     public String visit(VarDeclaration varDeclaration) {
-        //todo
+        // Todo: Check whether varHeader is correct or not
+        String varHeader = ".var " + this.slotOf(varDeclaration.getVarName().getName()) + " is " +
+                varDeclaration.getVarName().getName() + " " +
+                this.makeTypeSignature(varDeclaration.accept(this.expressionTypeChecker));
+        this.addCommand(varHeader);
         return null;
     }
 
@@ -412,6 +514,13 @@ public class CodeGenerator extends Visitor<String> {
     public String visit(ListValue listValue) {
         String commands = "";
         //todo
+        //IntType -> Integer
+        //BoolType -> Boolean
+        //StringType - String
+        // create a new List
+        // put arraylist as argument
+        // invoke virtual
+        //
         return commands;
     }
 
@@ -446,7 +555,7 @@ public class CodeGenerator extends Visitor<String> {
     public String visit(StringValue stringValue) {
         String commands = "";
         commands = commands + "ldc ";
-        commands = commands + stringValue.getConstant();
+        commands = commands + "\"" + stringValue.getConstant() + "\"";
         commands = commands + "\n";
         return commands;
     }
