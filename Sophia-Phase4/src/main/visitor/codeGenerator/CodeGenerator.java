@@ -49,6 +49,9 @@ public class CodeGenerator extends Visitor<String> {
     private ClassDeclaration currentClass;
     private MethodDeclaration currentMethod;
     private int methodTempVariables;
+    private int label;
+    private String breakLabel;
+    private String continueLabel;
 
     public CodeGenerator(Graph<String> classHierarchy) {
         this.classHierarchy = classHierarchy;
@@ -113,50 +116,95 @@ public class CodeGenerator extends Visitor<String> {
         } catch (IOException e) {}
     }
 
-    private void addDefaultFieldValueToClass(int fieldIndex, Type fieldType) {
-        if (fieldType instanceof IntType) {
-
-        } else if (fieldType instanceof StringType) {
-
-        } else if (fieldType instanceof  BoolType) {
-
-        } else if ((fieldType instanceof ClassType) || fieldType instanceof FptrType) {
-
-        } else if (fieldType instanceof ListType) {
-
-        }
+    private String getLabel() {
+        String label = "Label_" + this.label;
+        this.label += 1;
+        return label;
     }
 
-    private String makeTypeSignature(Type type) {
+    private String addDefaultFieldValueToClass(Type fieldType) {
+        if (fieldType instanceof IntType) {
+            return "ldc 0";
+        } else if (fieldType instanceof StringType) {
+            return  "ldc \"\"";
+        } else if (fieldType instanceof  BoolType) {
+            return  "ldc 0";
+        } else if ((fieldType instanceof ClassType) || fieldType instanceof FptrType) {
+            return "ldc null\n";
+        } else if (fieldType instanceof ListType) { // Todo: complete List
+            //ArrayList<Object> elements = new ArrayList<Object>();
+            return "";
+        }
+        return "";
+    }
+
+    private String makeTypeSignature(Type fieldType) {
         String typeString = "";
-        if (type instanceof IntType) {
+        if (fieldType instanceof IntType) {
             typeString = "java/lang/Integer";
-        } else if (type instanceof BoolType) {
+        } else if (fieldType instanceof BoolType) {
             typeString = "java/lang/Boolean";
-        } else if (type instanceof  StringType) {
+        } else if (fieldType instanceof  StringType) {
             typeString = "java/lang/String";
-        } else if (type instanceof ListType) {
+        } else if (fieldType instanceof ListType) {
             typeString = "List";
-        } else if (type instanceof FptrType) {
+        } else if (fieldType instanceof FptrType) {
             typeString = "Fptr";
-        } else if (type instanceof ClassType) {
+        } else if (fieldType instanceof ClassType) {
             typeString = this.currentClass.getClassName().getName();
         }
         return "L" + typeString + ";";
     }
 
     private void addDefaultConstructor() {
-        String methodHeader = ".method public <init> ()V";
+        String methodHeader = ".method public <init> ()V\n";
+        methodHeader += ".limit stack 128\n";
+        methodHeader += ".limit locals 128\n";
+        methodHeader += ".var 0 is this " + "L" + this.currentClass.getClassName().getName() + ";"; // Todo: .var 0
         this.addCommand(methodHeader);
 
-        for (int fieldIndex = 0; fieldIndex < this.currentClass.getFields().size(); fieldIndex++) { // Todo: Check initial value of fieldIndex
-            Type fieldType = this.currentClass.getFields().get(fieldIndex).accept(this.expressionTypeChecker);
-            this.addDefaultFieldValueToClass(fieldIndex, fieldType); // Todo: Complete addDefaultFieldValueToClass
+        String objectCreation = "";
+        objectCreation += "aload_0\n";
+        objectCreation += "invokespecial java/lang/Object/<init>()V\n";
+        this.addCommand(objectCreation);
+
+        if(this.currentClass.getParentClassName() != null) { // Todo: Check this
+            String objectParentCreation = "";
+            objectParentCreation += "aload_0\n";
+            objectCreation += "invokespecial " + this.currentClass.getParentClassName().getName() + "/" + "<init>()V\n";
+            this.addCommand(objectParentCreation);
+        } else {
+            String objectParentCreation = "";
+            objectParentCreation += "aload_0\n";
+            objectCreation += "invokespecial java/lang/Object/" + "<init>()V\n";
+            this.addCommand(objectParentCreation);
         }
+
+        String commands = "";
+        for (FieldDeclaration fieldDeclaration : this.currentClass.getFields()) {
+            commands += "aload_0\n";
+            Type fieldType = fieldDeclaration.accept(this.expressionTypeChecker);
+            String fieldName = fieldDeclaration.getVarDeclaration().getVarName().getName();
+            commands += this.addDefaultFieldValueToClass(fieldType) + "\n";
+            commands += "putfield " + this.currentClass.getClassName().getName() + "/" + fieldName + " "
+                    + makeTypeSignature(fieldType) + "\n";
+        }
+        this.addCommand(commands);
+
+        String methodFooter = "";
+        methodFooter += "return\n";
+        methodFooter += ".end method\n";
+        this.addCommand(methodFooter);
     }
 
     private void addStaticMainMethod() {
-        //todo
+        this.addCommand(" .method public static main()V");
+        this.addCommand(".limit stack 128\n");
+        this.addCommand(".limit locals 128\n");
+
+        this.addCommand("new Main\n");
+        this.addCommand("dup\n");
+        this.addCommand("invokespecial Main/<init>()V\n");
     }
 
     private int slotOf(String identifier) {
@@ -197,8 +245,9 @@ public class CodeGenerator extends Visitor<String> {
     @Override
     public String visit(ClassDeclaration classDeclaration) {
         this.createFile(classDeclaration.getClassName().getName());
+        this.label = 0;
 
-        String header = ".class public " + classDeclaration.getClassName().getName();
+        String header = ".class public " + classDeclaration.getClassName().getName() + '\n';
         this.addCommand(header);
 
         String superHeader;
@@ -214,12 +263,16 @@ public class CodeGenerator extends Visitor<String> {
             fieldDeclaration.accept(this);
         }
 
-        this.addDefaultConstructor(); // Todo: Complete addDefaultConstructor
         if (classDeclaration.getConstructor() != null) {
+            if (classDeclaration.getConstructor().getArgs().size() > 0) {
+                this.addDefaultConstructor(); // Todo: Complete addDefaultConstructor
+            }
             this.currentMethod = classDeclaration.getConstructor();
             this.expressionTypeChecker.setCurrentMethod(classDeclaration.getConstructor());
             this.methodTempVariables = 0;
             classDeclaration.getConstructor().accept(this);
+        } else {
+            this.addDefaultConstructor(); // Todo: Complete addDefaultConstructor
         }
 
         for (MethodDeclaration methodDeclaration : classDeclaration.getMethods()) {
@@ -233,10 +286,8 @@ public class CodeGenerator extends Visitor<String> {
 
     @Override
     public String visit(ConstructorDeclaration constructorDeclaration) {
-        //todo add default constructor or static main method if needed
         if (this.currentClass.getClassName().getName().equals("Main")) {
-            // Todo: Create a static main method if needed
-            // Todo: When and Where should parent constructor be called
+            this.addStaticMainMethod();
         }
         this.visit((MethodDeclaration) constructorDeclaration);
         return null;
@@ -244,96 +295,253 @@ public class CodeGenerator extends Visitor<String> {
 
     @Override
     public String visit(MethodDeclaration methodDeclaration) {
-        //todo add method or constructor headers
-        if(methodDeclaration instanceof ConstructorDeclaration) {
-            //todo call parent constructor
-            //todo initialize fields
+        if (this.currentClass.getClassName().getName().equals(methodDeclaration.getMethodName().getName())) {
+            String methodArgs = "";
+            for (VarDeclaration varDeclaration : this.currentClass.getConstructor().getArgs()) {
+                methodArgs += this.makeTypeSignature(varDeclaration.getType());
+            }
+            String methodHeader = ".method public <init> (" + methodArgs + ")V\n";
+            methodHeader += ".limit stack 128\n";
+            methodHeader += ".limit locals 128\n";
+            methodHeader += ".var 0 is this " + "L" + this.currentClass.getClassName().getName() + ";"; // Todo: .var 0
+            for (VarDeclaration varDeclaration : methodDeclaration.getArgs()) {
+                methodHeader += ".var " + this.slotOf(varDeclaration.getVarName().getName()) + " is " +
+                        varDeclaration.getVarName().getName() + " " +
+                        this.makeTypeSignature(varDeclaration.accept(this.expressionTypeChecker));
+            }
+            for (VarDeclaration varDeclaration : methodDeclaration.getLocalVars()) {
+                methodHeader += ".var " + this.slotOf(varDeclaration.getVarName().getName()) + " is " +
+                        varDeclaration.getVarName().getName() + " " +
+                        this.makeTypeSignature(varDeclaration.accept(this.expressionTypeChecker));
+            }
+            this.addCommand(methodHeader);
+
+            String objectCreation = "";
+            objectCreation += "aload_0\n";
+            objectCreation += "invokespecial " + this.currentClass.getClassName().getName() + "/<init>(" + methodArgs + ")V\n";
+            this.addCommand(objectCreation);
+
+            if(this.currentClass.getParentClassName() != null) { // Todo: Check this
+                String objectParentCreation = "";
+                objectParentCreation += "aload_0\n";
+                objectCreation += "invokespecial " + this.currentClass.getParentClassName().getName() + "/" + "<init>()V\n";
+                this.addCommand(objectParentCreation);
+            }
+
+            String commands = "";
+            for (FieldDeclaration fieldDeclaration : this.currentClass.getFields()) {
+                commands += "aload_0\n";
+                Type fieldType = fieldDeclaration.accept(this.expressionTypeChecker);
+                String fieldName = fieldDeclaration.getVarDeclaration().getVarName().getName();
+                commands += this.addDefaultFieldValueToClass(fieldType) + "\n";
+                commands += "putfield " + this.currentClass.getClassName().getName() + "/" + fieldName + " "
+                        + makeTypeSignature(fieldType) + "\n";
+            }
+            this.addCommand(commands);
+
+            String methodFooter = "";
+            methodFooter += "return\n";
+            methodFooter += ".end method\n";
+            this.addCommand(methodFooter);
+        } else {
+            String methodArgs = "";
+            for (VarDeclaration varDeclaration : this.currentClass.getConstructor().getArgs()) {
+                methodArgs += this.makeTypeSignature(varDeclaration.getType());
+            }
+            String methodReturn = "";
+            methodReturn += this.makeTypeSignature(methodDeclaration.getReturnType());
+            String methodHeader = ".method public <init> (" + methodArgs + ")" + methodReturn + "\n";
+            methodHeader += ".limit stack 128\n";
+            methodHeader += ".limit locals 128\n";
+            methodHeader += ".var 0 is this " + "L" + this.currentClass.getClassName().getName() + ";"; // Todo: .var 0
+            for (VarDeclaration varDeclaration : methodDeclaration.getArgs()) {
+                methodHeader += ".var " + this.slotOf(varDeclaration.getVarName().getName()) + " is " +
+                        varDeclaration.getVarName().getName() + " " +
+                        this.makeTypeSignature(varDeclaration.accept(this.expressionTypeChecker));
+            }
+            for (VarDeclaration varDeclaration : methodDeclaration.getLocalVars()) {
+                methodHeader += ".var " + this.slotOf(varDeclaration.getVarName().getName()) + " is " +
+                        varDeclaration.getVarName().getName() + " " +
+                        this.makeTypeSignature(varDeclaration.accept(this.expressionTypeChecker));
+            }
+            this.addCommand(methodHeader);
+
+            for (VarDeclaration varDeclaration : methodDeclaration.getLocalVars()) {
+                varDeclaration.accept(this);
+            }
+
+            for (Statement statement : methodDeclaration.getBody()) {
+                statement.accept(this);
+            }
+
+            String methodFooter = "";
+            if (!(methodDeclaration.getDoesReturn())) {
+                methodFooter += "return\n";
+            }
+            methodFooter += ".end method\n";
+            this.addCommand(methodFooter);
         }
-        //todo visit local vars and body and add return if needed
         return null;
     }
 
     @Override
     public String visit(FieldDeclaration fieldDeclaration) {
         String fieldHeader = ".field public " + fieldDeclaration.getVarDeclaration().getVarName().getName() +
-                " " + makeTypeSignature(fieldDeclaration.accept(this.expressionTypeChecker));
+                " " + makeTypeSignature(fieldDeclaration.getVarDeclaration().getType());
         this.addCommand(fieldHeader);
         return null;
     }
 
     @Override
     public String visit(VarDeclaration varDeclaration) {
-        // Todo: Check whether varHeader is correct or not
-        String varHeader = ".var " + this.slotOf(varDeclaration.getVarName().getName()) + " is " +
-                varDeclaration.getVarName().getName() + " " +
-                this.makeTypeSignature(varDeclaration.accept(this.expressionTypeChecker));
-        this.addCommand(varHeader);
+        String command = "";
+        command += this.addDefaultFieldValueToClass(varDeclaration.getType()) + "\n";
+        if (varDeclaration.getType() instanceof IntType ||
+                varDeclaration.getType() instanceof BoolType) {
+            command += "istore " + this.slotOf(varDeclaration.getVarName().getName()) + "\n";
+        } else {
+            command += "astore " + this.slotOf(varDeclaration.getVarName().getName()) + "\n";
+        }
         return null;
     }
 
     @Override
     public String visit(AssignmentStmt assignmentStmt) {
-        //todo
+        BinaryExpression binaryExpression =
+                new BinaryExpression(assignmentStmt.getlValue(), assignmentStmt.getrValue(), BinaryOperator.assign);
+        binaryExpression.accept(this);
+        // Todo: Pop assignment expression value from stack
         return null;
     }
 
     @Override
     public String visit(BlockStmt blockStmt) {
-        //todo
+        for (Statement statement : blockStmt.getStatements()) {
+            statement.accept(this);
+        }
         return null;
     }
 
     @Override
     public String visit(ConditionalStmt conditionalStmt) {
-        //todo
+        conditionalStmt.getCondition().accept(this);
+
+        String elseLabel = this.getLabel();
+        String AfterLabel = this.getLabel();
+
+        this.addCommand("if_eq " + elseLabel + "\n");
+        conditionalStmt.getThenBody().accept(this);
+        this.addCommand("goto " + AfterLabel + "\n");
+        this.addCommand(elseLabel);
+        conditionalStmt.getElseBody().accept(this);
+        this.addCommand(AfterLabel);
         return null;
     }
 
     @Override
     public String visit(MethodCallStmt methodCallStmt) {
-        //todo
+        this.expressionTypeChecker.setIsInMethodCallStmt(true);
+        methodCallStmt.getMethodCall().accept(this);
+        this.expressionTypeChecker.setIsInMethodCallStmt(false);
+        // Todo: Add pop
         return null;
     }
 
     @Override
     public String visit(PrintStmt print) {
-        //todo
+        Type printType = print.getArg().accept(this.expressionTypeChecker);
+        this.addCommand("getstatic java/lang/System/out Ljava/io/PrintStream;\n");
+        if (print.getArg() != null) {
+            print.getArg().accept(this);
+        }
+        this.addCommand("invokevirtual java/io/PrintStream/print(" + this.makeTypeSignature(printType) + ")V");
         return null;
     }
 
     @Override
     public String visit(ReturnStmt returnStmt) {
-        Type type = returnStmt.getReturnedExpr().accept(expressionTypeChecker);
-        if(type instanceof NullType) {
-            addCommand("return");
-        }
-        else {
-            //todo add commands to return
+        if (returnStmt.getReturnedExpr() == null) {
+            this.addCommand("return\n");
+        } else {
+            returnStmt.getReturnedExpr().accept(this);
+            if (this.currentMethod.getReturnType() instanceof IntType ||
+                    this.currentMethod.getReturnType() instanceof BoolType) {
+                this.addCommand("ireturn\n");
+            } else {
+                this.addCommand("areturn\n");
+            }
         }
         return null;
     }
 
     @Override
     public String visit(BreakStmt breakStmt) {
-        //todo
+        this.addCommand("goto " + this.breakLabel + "\n");
         return null;
     }
 
     @Override
     public String visit(ContinueStmt continueStmt) {
-        //todo
+        this.addCommand("goto " + this.continueLabel + "\n");
         return null;
     }
 
     @Override
-    public String visit(ForeachStmt foreachStmt) {
-        //todo
+    public String visit(ForeachStmt foreachStmt) { // Todo: Foreach variable + '\n'
+        String prevContinueLabel = this.continueLabel;
+        String prevBreakLabel = this.breakLabel;
+        this.continueLabel = this.getLabel();
+        this.breakLabel = this.getLabel();
+
+        int loop =  this.slotOf("");
+
+        this.addCommand("ldc 0\n");
+        this.addCommand("istore " + loop);
+
+        this.addCommand(this.continueLabel);
+
+        this.addCommand("iload " + loop);
+        Type type = foreachStmt.getList().accept(this.expressionTypeChecker);
+        ListType listType = (ListType)type;
+        this.addCommand("ldc " +  listType.getElementsTypes().size());
+        this.addCommand("if_icmpge " + this.breakLabel);
+
+        foreachStmt.getBody().accept(this);
+
+        this.addCommand("iinc " + loop + " 1");
+
+        this.addCommand("goto " + this.continueLabel);
+
+        this.addCommand(this.breakLabel);
+
+        this.continueLabel = prevContinueLabel;
+        this.breakLabel = prevBreakLabel;
         return null;
     }
 
     @Override
     public String visit(ForStmt forStmt) {
-        //todo
+        String prevContinueLabel = this.continueLabel;
+        String prevBreakLabel = this.breakLabel;
+        this.continueLabel = this.getLabel();
+        this.breakLabel = this.getLabel();
+
+        if (forStmt.getInitialize() != null) {
+            forStmt.getInitialize().accept(this);
+        }
+        this.addCommand(this.continueLabel);
+        if (forStmt.getCondition() != null) { // Todo: Check this part
+            forStmt.getCondition().accept(this);
+        }
+        forStmt.getBody().accept(this);
+        if (forStmt.getUpdate() != null) {
+            forStmt.getUpdate().accept(this);
+        }
+        this.addCommand("goto " + this.continueLabel + "\n");
+        this.addCommand(this.breakLabel);
+
+        this.continueLabel = prevContinueLabel;
+        this.breakLabel = prevBreakLabel;
         return null;
     }
 
@@ -342,31 +550,105 @@ public class CodeGenerator extends Visitor<String> {
         BinaryOperator operator = binaryExpression.getBinaryOperator();
         String commands = "";
         if (operator == BinaryOperator.add) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            commands += "iadd\n";
         }
         else if (operator == BinaryOperator.sub) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            commands += "isub\n";
         }
         else if (operator == BinaryOperator.mult) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            commands += "imul\n";
         }
         else if (operator == BinaryOperator.div) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            commands += "idiv\n";
         }
         else if (operator == BinaryOperator.mod) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            commands += "irem\n";
         }
         else if((operator == BinaryOperator.gt) || (operator == BinaryOperator.lt)) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            String trueLabel = this.getLabel();
+            String afterLabel = this.getLabel();
+
+            if ((operator == BinaryOperator.gt)) {
+                commands += "If_icmpgt " + trueLabel + "\n";
+            } else {
+                commands += "If_icmplt " + trueLabel + "\n";
+            }
+            commands += "ldc 0\n";
+            commands += "goto " + afterLabel + "\n";
+            commands += trueLabel;
+            commands += "ldc 1\n";
+            commands += afterLabel;
         }
         else if((operator == BinaryOperator.eq) || (operator == BinaryOperator.neq)) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            String trueLabel = this.getLabel();
+            String afterLabel = this.getLabel();
+
+            if ((operator == BinaryOperator.eq)) {
+                commands += "If_icmpeq " + trueLabel + "\n";
+            } else {
+                commands += "If_icmpne " + trueLabel + "\n";
+            }
+            commands += "ldc 0\n";
+            commands += "goto " + afterLabel + "\n";
+            commands += trueLabel;
+            commands += "ldc 1\n";
+            commands += afterLabel;
         }
         else if(operator == BinaryOperator.and) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            String trueLabel = this.getLabel();
+            String afterLabel = this.getLabel();
+
+            String nextLabel = this.getLabel();
+            commands += "ldc 0\n";
+            commands += "If_icmpne " + nextLabel + "\n";
+            commands += "pop\n";
+            commands += "ldc 0\n";
+            commands += "goto " + afterLabel + "\n";
+            commands += nextLabel + "\n";
+            commands += "ldc 0\n";
+            commands += "If_icmpne " + trueLabel + "\n";
+            commands += "ldc 0\n";
+            commands += "goto " + afterLabel + "\n";
+            commands += trueLabel + "\n";
+            commands += "ldc 1\n";
+            commands += afterLabel;
         }
         else if(operator == BinaryOperator.or) {
-            //todo
+            commands += binaryExpression.getFirstOperand().accept(this) + "\n";
+            commands += binaryExpression.getSecondOperand().accept(this) + "\n";
+            String trueLabel = this.getLabel();
+            String afterLabel = this.getLabel();
+
+            String secondTrueLabel = this.getLabel();
+            commands += "ldc 0\n";
+            commands += "If_icmpne " + trueLabel + "\n";
+            commands += "ldc 0\n";
+            commands += "If_icmpne " + secondTrueLabel + "\n";
+            commands += "ldc 0\n";
+            commands += "goto " + afterLabel + "\n";
+            commands += trueLabel + "\n";
+            commands += "pop\n";
+            commands += "ldc 1\n";
+            commands += "goto " + afterLabel;
+            commands += secondTrueLabel + "\n";
+            commands += "ldc 1\n";
+            commands += afterLabel;
         }
         else if(operator == BinaryOperator.assign) {
             Type firstType = binaryExpression.getFirstOperand().accept(expressionTypeChecker);
@@ -376,7 +658,14 @@ public class CodeGenerator extends Visitor<String> {
                 // (add these commands to secondOperandCommands)
             }
             if(binaryExpression.getFirstOperand() instanceof Identifier) {
-                //todo
+                commands += secondOperandCommands + "\n";
+                Type expressionType = binaryExpression.getFirstOperand().accept(this.expressionTypeChecker);
+                if (expressionType instanceof IntType || expressionType instanceof BoolType) {
+                    commands += "istore ";
+                } else {
+                    commands += "astore ";
+                }
+                commands += this.slotOf(((Identifier) binaryExpression.getFirstOperand()).getName()) + "\n";
             }
             else if(binaryExpression.getFirstOperand() instanceof ListAccessByIndex) {
                 //todo
@@ -478,7 +767,13 @@ public class CodeGenerator extends Visitor<String> {
     @Override
     public String visit(Identifier identifier) {
         String commands = "";
-        //todo
+        commands += "aload " + this.slotOf(identifier.getName()) + "\n";
+        Type expressionType = identifier.accept(this.expressionTypeChecker);
+        if (expressionType instanceof IntType) {
+            commands += "invokevirtual java/lang/Integer/intValue()I\n";
+        } else if (expressionType instanceof BoolType) {
+            commands += "invokevirtual java/lang/Boolean/booleanValue()Z\n";
+        }
         return commands;
     }
 
@@ -498,21 +793,42 @@ public class CodeGenerator extends Visitor<String> {
 
     @Override
     public String visit(NewClassInstance newClassInstance) {
+        String args = "";
+
         String commands = "";
-        //todo
+        commands += "new " + newClassInstance.getClassType().getClassName().getName() + "\n";
+        commands += "dup\n";
+        for (Expression expression : newClassInstance.getArgs()) {
+            expression.accept(this);
+            Type expressionType = expression.accept(this.expressionTypeChecker);
+            if (expressionType instanceof IntType) {
+                commands += "invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n";
+            } else if (expressionType instanceof BoolType) {
+                commands += "invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n";
+            }
+            args += this.makeTypeSignature(expressionType);
+        }
+        commands += "invokespecial " + newClassInstance.getClassType().getClassName().getName() + "/<init>("
+                + args+ ")V";
         return commands;
     }
 
     @Override
     public String visit(ThisClass thisClass) {
         String commands = "";
-        //todo
+        commands += "aload_0\n";
         return commands;
     }
 
     @Override
     public String visit(ListValue listValue) {
         String commands = "";
+        ArrayList<Object> arrayList = new ArrayList<>();
+        for (Expression expression : listValue.getElements()) {
+            Type type = expression.accept(this.expressionTypeChecker);
+
+        }
+
         //todo
         //IntType -> Integer
         //BoolType -> Boolean
@@ -559,5 +875,4 @@ public class CodeGenerator extends Visitor<String> {
         commands = commands + "\n";
         return commands;
     }
-
 }
