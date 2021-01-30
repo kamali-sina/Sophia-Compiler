@@ -1,0 +1,7 @@
+class Main{
+  def Main() {
+    i: int;
+    i = 1;
+    print(i);
+  }
+}

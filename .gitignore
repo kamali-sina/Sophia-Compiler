@@ -8,6 +8,8 @@
 *.ctxt
 
 #IntelliJ Idea Files
+Sophia-Phase4/output/*
+Sophia-Phase4/out/*
 
 gen
 .idea
