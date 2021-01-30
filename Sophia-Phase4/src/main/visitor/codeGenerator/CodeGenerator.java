@@ -132,8 +132,29 @@ public class CodeGenerator extends Visitor<String> {
         } else if ((fieldType instanceof ClassType) || fieldType instanceof FptrType) {
             return "ldc null\n";
         } else if (fieldType instanceof ListType) { // Todo: complete List
-            //ArrayList<Object> elements = new ArrayList<Object>();
-            return "";
+            ListType listType = (ListType)fieldType;
+            String commands = "";
+            commands += "new List\n";
+            commands += "dup\n";
+
+            commands += "new java/util/ArrayList\n";
+            commands += "dup\n";
+            commands += "invokespecial java/util/ArrayList/<init>()V\n";
+
+            commands += "invokespecial List/<init>(Ljava/util/ArrayList;)V\n";
+
+            for (ListNameType listNameType : listType.getElementsTypes()) {
+                commands += this.addDefaultFieldValueToClass(listNameType.getType());
+                if (listNameType.getType() instanceof IntType) {
+                    commands += "invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n";
+                } else if (listNameType.getType() instanceof BoolType) {
+                    commands += "invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n";
+                }
+                commands += "checkcast java/lang/Object\n";
+                commands += "invokevirtual java/util/ArrayList/add(Ljava/lang/Object;)Z\n";
+            }
+            commands += "invokespecial List/<init>(Ljava/util/ArrayList;)V\n";
+            return commands;
         }
         return "";
     }
@@ -265,14 +286,14 @@ public class CodeGenerator extends Visitor<String> {
 
         if (classDeclaration.getConstructor() != null) {
             if (classDeclaration.getConstructor().getArgs().size() > 0) {
-                this.addDefaultConstructor(); // Todo: Complete addDefaultConstructor
+                this.addDefaultConstructor();
             }
             this.currentMethod = classDeclaration.getConstructor();
             this.expressionTypeChecker.setCurrentMethod(classDeclaration.getConstructor());
             this.methodTempVariables = 0;
             classDeclaration.getConstructor().accept(this);
         } else {
-            this.addDefaultConstructor(); // Todo: Complete addDefaultConstructor
+            this.addDefaultConstructor();
         }
 
         for (MethodDeclaration methodDeclaration : classDeclaration.getMethods()) {
@@ -409,7 +430,7 @@ public class CodeGenerator extends Visitor<String> {
     public String visit(AssignmentStmt assignmentStmt) {
         BinaryExpression binaryExpression =
                 new BinaryExpression(assignmentStmt.getlValue(), assignmentStmt.getrValue(), BinaryOperator.assign);
-        binaryExpression.accept(this);
+        this.addCommand(binaryExpression.accept(this));
         // Todo: Pop assignment expression value from stack
         return null;
     }
@@ -496,11 +517,11 @@ public class CodeGenerator extends Visitor<String> {
         int loop =  this.slotOf("");
 
         this.addCommand("ldc 0\n");
-        this.addCommand("istore " + loop);
+        this.addCommand("istore " + loop + "\n");
 
         this.addCommand(this.continueLabel);
 
-        this.addCommand("iload " + loop);
+        this.addCommand("iload " + loop+ "\n");
         Type type = foreachStmt.getList().accept(this.expressionTypeChecker);
         ListType listType = (ListType)type;
         this.addCommand("ldc " +  listType.getElementsTypes().size());
@@ -508,9 +529,9 @@ public class CodeGenerator extends Visitor<String> {
 
         foreachStmt.getBody().accept(this);
 
-        this.addCommand("iinc " + loop + " 1");
+        this.addCommand("iinc " + loop + " 1" + "\n");
 
-        this.addCommand("goto " + this.continueLabel);
+        this.addCommand("goto " + this.continueLabel + "\n");
 
         this.addCommand(this.breakLabel);
 
@@ -691,17 +712,29 @@ public class CodeGenerator extends Visitor<String> {
         UnaryOperator operator = unaryExpression.getOperator();
         String commands = "";
         if(operator == UnaryOperator.minus) {
-            //todo
+            unaryExpression.getOperand().accept(this);
+            commands += "ineg\n";
         }
         else if(operator == UnaryOperator.not) {
-            //todo
+            commands += "ldc 1\n";
+            unaryExpression.getOperand().accept(this);
+            commands += "isub\n";
         }
         else if((operator == UnaryOperator.predec) || (operator == UnaryOperator.preinc)) {
             if(unaryExpression.getOperand() instanceof Identifier) {
-                //todo
+                commands += "iinc " + this.slotOf(((Identifier) unaryExpression.getOperand()).getName()) +",1\n";
+                unaryExpression.getOperand().accept(this);
             }
             else if(unaryExpression.getOperand() instanceof ListAccessByIndex) {
-                //todo
+                commands += unaryExpression.getOperand().accept(this);
+                commands += "ldc 1\n";
+                commands += "iadd\n";
+                // Todo: Check if casting is correct
+                commands += "invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n";
+                commands += "checkcast java/lang/Object\n";
+                //
+                commands += ((ListAccessByIndex)unaryExpression.getOperand()).getIndex().accept(this);
+                commands += "invoke List/setElement(ILjava/lang/Object;)V\n";
             }
             else if(unaryExpression.getOperand() instanceof ObjectOrListMemberAccess) {
                 Expression instance = ((ObjectOrListMemberAccess) unaryExpression.getOperand()).getInstance();
@@ -712,13 +745,14 @@ public class CodeGenerator extends Visitor<String> {
                     //todo
                 }
                 else if(instanceType instanceof ClassType) {
-                    //todo
+
                 }
             }
         }
         else if((operator == UnaryOperator.postdec) || (operator == UnaryOperator.postinc)) {
             if(unaryExpression.getOperand() instanceof Identifier) {
-                //todo
+                unaryExpression.getOperand().accept(this);
+                commands += "iinc " + this.slotOf(((Identifier) unaryExpression.getOperand()).getName()) +",1\n";
             }
             else if(unaryExpression.getOperand() instanceof ListAccessByIndex) {
                 //todo
@@ -780,14 +814,41 @@ public class CodeGenerator extends Visitor<String> {
     @Override
     public String visit(ListAccessByIndex listAccessByIndex) {
         String commands = "";
-        //todo
+        commands += listAccessByIndex.accept(this) + "\n";
+        commands += listAccessByIndex.getIndex().accept(this) + "\n";
+        commands += "invokevirtual List/getElement(Ljava/lang/Integer;)Ljava/lang/Object\n";
+        Type listAccessByIndexType = listAccessByIndex.accept(this.expressionTypeChecker);
+
+        if (listAccessByIndexType instanceof IntType) { // Todo: Complete casting objcet to proper type
+
+        } else if (listAccessByIndexType instanceof BoolType) {
+
+        }
         return commands;
     }
 
     @Override
     public String visit(MethodCall methodCall) {
         String commands = "";
-        //todo
+        commands += "new java/util/ArrayList\n";
+        commands += "dup\n";
+        commands += "invokespecial java/util/ArrayList/<init>()V\n";
+        for (Expression expression : methodCall.getArgs()) {
+            commands += expression.accept(this);
+
+            Type expressionType = expression.accept(this.expressionTypeChecker);
+            if (expressionType instanceof IntType) {
+                commands += "invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n";
+            } else if (expressionType instanceof BoolType) {
+                commands += "invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n";
+            }
+            commands += "checkcast java/lang/Object\n";
+            commands += "invokevirtual java/util/ArrayList/add(Ljava/lang/Object;)Z\n";
+            commands += "pop\n";
+        }
+        commands += methodCall.getInstance().accept(this) + "\n";
+        commands += "invokevirtual Fptr/invoke(Ljava/util/ArrayList;)Ljava/lang/Object\n";
+        // Todo: Complete casting objcet to proper type
         return commands;
     }
 
@@ -823,27 +884,35 @@ public class CodeGenerator extends Visitor<String> {
     @Override
     public String visit(ListValue listValue) {
         String commands = "";
-        ArrayList<Object> arrayList = new ArrayList<>();
-        for (Expression expression : listValue.getElements()) {
-            Type type = expression.accept(this.expressionTypeChecker);
+        commands += "new List\n";
+        commands += "dup\n";
 
+        commands += "new java/util/ArrayList\n";
+        commands += "dup\n";
+        commands += "invokespecial java/util/ArrayList/<init>()V\n";
+
+        for (Expression expression : listValue.getElements()) {
+            commands += "dup\n"; // Todo: Check why we need dup
+            commands += expression.accept(this);
+            Type expressionType = expression.accept(this.expressionTypeChecker);
+            if (expressionType instanceof IntType) {
+                commands += "invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n";
+            } else if (expressionType instanceof BoolType) {
+                commands += "invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n";
+            }
+            commands += "checkcast java/lang/Object\n";
+            commands += "invokevirtual java/util/ArrayList/add(Ljava/lang/Object;)Z\n";
+            commands += "pop\n";
         }
 
-        //todo
-        //IntType -> Integer
-        //BoolType -> Boolean
-        //StringType - String
-        // create a new List
-        // put arraylist as argument
-        // invoke virtual
-        //
+        commands += "invokespecial List/<init>(Ljava/util/ArrayList;)V\n";
         return commands;
     }
 
     @Override
     public String visit(NullValue nullValue) {
         String commands = "";
-        //todo
+        commands += "ldc null\n";
         return commands;
     }
 
