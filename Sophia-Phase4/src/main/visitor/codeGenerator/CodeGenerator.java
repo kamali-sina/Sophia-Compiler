@@ -454,10 +454,12 @@ public class CodeGenerator extends Visitor<String> {
         this.addCommand("getstatic java/lang/System/out Ljava/io/PrintStream;\n");
         if (print.getArg() != null) {
             this.addCommand(print.getArg().accept(this));
-            //TODO:Casting
-//            this.addCommand("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
         }
-        this.addCommand("invokevirtual java/io/PrintStream/print(" + this.makeTypeSignature(printType) + ")V");
+        if (printType instanceof IntType) {
+            this.addCommand("invokevirtual java/io/PrintStream/print(I)V\n");
+        } else {
+            this.addCommand("invokevirtual java/io/PrintStream/println(I)V\n");
+        }
         return null;
     }
 
@@ -663,11 +665,12 @@ public class CodeGenerator extends Visitor<String> {
             if(binaryExpression.getFirstOperand() instanceof Identifier) {
                 commands += secondOperandCommands + "\n";
                 Type expressionType = binaryExpression.getFirstOperand().accept(this.expressionTypeChecker);
-                if (expressionType instanceof IntType || expressionType instanceof BoolType) {
-                    commands += "istore ";
-                } else {
-                    commands += "astore ";
+                if (expressionType instanceof IntType) {
+                    commands += "invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n";
+                } else if (expressionType instanceof BoolType) {
+                    commands += "invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n";
                 }
+                commands += "astore ";
                 commands += this.slotOf(((Identifier) binaryExpression.getFirstOperand()).getName()) + "\n";
             }
             else if(binaryExpression.getFirstOperand() instanceof ListAccessByIndex) {
@@ -793,11 +796,11 @@ public class CodeGenerator extends Visitor<String> {
     @Override
     public String visit(Identifier identifier) {
         String commands = "";
+        Type type = identifier.accept(this.expressionTypeChecker);
         commands += "aload " + this.slotOf(identifier.getName()) + "\n";
-        Type expressionType = identifier.accept(this.expressionTypeChecker);
-        if (expressionType instanceof IntType) {
+        if (type instanceof IntType) {
             commands += "invokevirtual java/lang/Integer/intValue()I\n";
-        } else if (expressionType instanceof BoolType) {
+        } else if (type instanceof BoolType) {
             commands += "invokevirtual java/lang/Boolean/booleanValue()Z\n";
         }
         return commands;
