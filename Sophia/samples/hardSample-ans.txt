@@ -1,0 +1,58 @@
+
+--------------------------Compiling--------------------------
+Compilation successful
+
+-------------------Generating Class Files-------------------
+Generated: A.class
+Generated: B.class
+Generated: C.class
+Generated: Fptr.class
+Generated: List.class
+Generated: Main.class
+
+---------------------------Output---------------------------
+1
+hello
+true
+0
+0
+5
+hi
+
+true
+true
+2
+2
+false
+5
+24
+6
+then
+0
+1
+3
+4
+0
+2
+0
+6
+8
+0
+0
+0
+0
+0
+0
+7
+9
+10
+5
+10
+44
+9263
+9264
+9265
+8
+1
+42
+4

@@ -1,0 +1,42 @@
+class Cart {
+  orders: list(4 # list(name: string, price: int, quantity: int));
+  def void addToCart(product: list(string, int, int), idx: int) {
+    this.orders[idx] = product;
+  }
+  def int getSum() {
+    total: int;
+    current: int;
+    order: list(name: string, price: int, quantity: int);
+    total = 0;
+    foreach (order in this.orders) {
+      if (order.quantity == 0)
+        break;
+      current = order.price * order.quantity + order.quantity * 100 % 1000 - order.price / 100;
+      total = total + current;
+    }
+    return total;
+  }
+}
+
+class Main{
+  def Main() {
+    cart: Cart;
+    i: int;
+    total: int;
+    order: list(string, int, int);
+    product: list(string, int);
+    productCatalog: list(4 # list(string, int));
+    productCatalog = [["Doughnut", 5000], ["Croissant", 4000],
+                      ["Cookies", 2000],
+                      ["Chocolate Cake", 8000]];
+    cart = new Cart();
+    for (i = 0; i < 4; i = i + 1) {
+      product = productCatalog[i];
+      order = [product[0], product[1], i + 1];
+      cart.addToCart(order, i);
+    }
+    total = cart.getSum();
+    print(total);
+    print("\n");
+  }
+}
