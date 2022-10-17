@@ -53,6 +53,14 @@ Sophia was programmed in 4 Phases:
 
 Each Phase is available as a separate branch, but phase-4 contains all the previous phases.
 
+## Running The Code
+
+To run the code, you can use the following command:
+
+    make
+
+Remember that to run the Makefile, you must have had installed Antlr4 and Java on your system and edit the Makefile to point at your installation paths.
+
 ## Acknowledgments
 
-It was programmed by Sina Kamali & Sina Negarandeh at the University of Tehran. Please refer to the [LICENCE](https://github.com/kamali-sina/Sophia-Compiler/blob/phase-4/LICENCE) file for more info regarding the use of this product.
+This project was programmed by Sina Kamali & Sina Negarandeh at the University of Tehran. Please refer to the [LICENCE](https://github.com/kamali-sina/Sophia-Compiler/blob/phase-4/LICENCE) file for more info regarding the use of this product.
